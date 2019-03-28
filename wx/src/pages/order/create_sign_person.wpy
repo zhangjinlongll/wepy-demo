@@ -1,0 +1,775 @@
+<template>
+  <view wx:if="{{ pageShow }}" class="{{ isIphoneX?'iphoneXClassPB':'' }}">
+
+    <form bindsubmit="formSubmit">
+      <view class="container">
+        <scroll-view class="scrollView">
+          <view class="stepClass">
+
+            <view class="text">
+              <text class="title">提示：</text>
+              <text>进退场时须现场签署</text>
+              <view class="links" @tap="showOrderPic">《高空作业平台设备进/退场确认单》</view>
+              <text>，默认为您本人，您也可“+增加进退场签字人”授权他人代为签署。</text>
+            </view>
+
+          </view>
+          <view class="signBox">
+            <block wx:for="{{signPersonArr}}" wx:for-item="item" wx:for-index="signPerson" wx:key="this">
+              <view class="newPersonContent">
+                <view class="select_payMoneyBox">
+                  <view class="titleView">
+                    <text class="leftTitle">进退场签字人({{signPerson + 1}})</text>
+                    <text class="rightDelete" @tap="delSign({{ signPerson }})" hidden="{{signPerson==0}}">删除</text>
+                  </view>
+
+                  <view class="imageContent" hidden="{{ item.isShow }}">
+                    <view class="leftImage" @tap="uploadImgZ({{signPerson}})">
+                      <image class="IDImgZ" src="{{item.IDImgZ?item.IDImgZ:'../../images/img_c_sfzzm.png'}}"></image>
+                      <image class="cameraIcon" src="../../images/icon_scsfz.png"></image>
+                      <input type="text" style="display: none" name="IDImgZ" value="{{ item.IDImgZ }}" />
+                    </view>
+                    <view  class="rightImage" @tap="uploadImgF({{signPerson}})">
+                      <image class="IDImgF" src="{{item.IDImgF?item.IDImgF:'../../images/img_c_sfzfm.png'}}" ></image>
+                      <image class="cameraIcon" src="../../images/icon_scsfz.png"></image>
+                      <input type="text" style="display: none" name="IDImgF" value="{{ item.IDImgF }}" />
+                    </view>
+                  </view>
+
+                  <block wx:if="{{item.showContent}}">
+                    <view class="itemView">
+                      <view class="leftText">姓名</view>
+                      <view class="rightText">
+                        <input type="text" name="name" value="{{ item.realName }}" maxlength="10" disabled="{{item.disabled}}" placeholder="拍照自动识别" bindinput="editName({{signPerson}})" />
+                      </view>
+                    </view>
+                    <view class="lineView"></view>
+                    <view class="itemView">
+                      <view class="leftText">身份证号</view>
+                      <view class="rightText">
+                        <input type="idcard" name="identity" value="{{ item.idcardNumJx?item.idcardNumJx:item.idcardNum }}" maxlength="18" disabled="{{item.disabled}}" placeholder="拍照自动识别" bindinput="editIdentity({{signPerson}})" />
+                      </view>
+                    </view>
+                    <view class="lineView"></view>
+                    <view class="itemView">
+                      <view class="leftText">联系号码</view>
+                      <view class="rightText">
+                        <input type="number" name="mobile" value="{{ item.mobile }}" maxlength="11" disabled="{{item.disabled}}" placeholder="请输入" bindinput="editMobile({{signPerson}})"/>
+                      </view>
+                    </view>
+                  </block>
+
+                </view>
+              </view>
+            </block>
+            <view class="addSignPerson" @tap="addSign">+增加进退场签字人</view>
+          </view>
+
+          <view class="historyBox" wx:if="{{ historyList && historyList.length>0  }}">
+            <view class="title">历史进退场签字人</view>
+            <view class="list">
+              <view class="{{ item.checked?'item checked':'item'  }}" wx:for="{{ historyList }}" wx:for-item="item" wx:for-index="index" wx:key="historyList" @tap="selectOne({{ index }})">
+                <image class="checkbox" wx:if="{{ item.checked }}" src="../../images/icon_yx_checkbox.png"></image>
+                <image class="checkbox" wx:else src="../../images/icon_wx_checkbox.png"></image>
+                <text>{{item.realName}}</text>
+              </view>
+            </view>
+          </view>
+
+        </scroll-view>
+        <button class="submit  {{ isIphoneX?'iphoneXClass':'' }}" formType="submit">下一步</button>
+      </view>
+    </form>
+
+  </view>
+</template>
+  <script>
+    import wepy from "wepy";
+    import tip from "../../utils/tip";
+    import api from "../../api/api";
+    import WxValidate from '../../libs/WxValidate';
+    import { USER_SPECICAL_INFO } from "../../utils/constant";
+    let userSpecicalInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+    const uploadUrl = api.apiMall+'/api-crm/api/v2/auth/user/verify/ocrIDCard';
+    const uploadFiel = api.apiMall +'/api-oss/api/v2/oss/upload';
+    export default class create_sign_person extends wepy.page{
+      config = {
+        navigationBarTitleText: '确认进退场签字人',
+      };
+
+      data={
+        pageShow:false,
+        isIphoneX:false,
+        orderCode:'', // 订单编号
+        projectName:'',//
+        idNum:'',//
+        signPersonArr:[],
+        fromUrl:"",
+        toUrl:'',
+
+        historyList:[]
+      };
+
+      methods = {
+        //修改名字
+        editName(index,e){
+          let that = this;
+          that.signPersonArr[index].realName = e.detail.value;
+          that.$apply();
+        },
+
+        //修改身份证
+        editIdentity(index,e){
+          let that = this;
+          that.signPersonArr[index].idcardNum = e.detail.value;
+          that.$apply();
+        },
+
+        //修改手机号
+        editMobile(index,e){
+          let that = this;
+          that.signPersonArr[index].mobile = e.detail.value;
+          that.$apply();
+        },
+
+        //上传身份证正面
+        async uploadImgZ(signPerson){
+          let that = this;
+          let res = await new Promise((resolve)=>{
+            wx.chooseImage({
+              count: 1, // 默认9
+              sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+              sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+              success: function (res) {
+                resolve(res);
+              }
+            });
+          });
+          if( res && res.errMsg == 'chooseImage:ok'){
+            tip.loading();
+            // 返回选定照片的本地文件路径列表，tempFilePath可以作为img标签的src属性显示图片
+            var tempFilePaths = res.tempFilePaths;
+            this.signPersonArr[signPerson].IDImgZ = tempFilePaths[0];
+            wx.uploadFile({
+              url: uploadUrl,
+              filePath: that.signPersonArr[signPerson].IDImgZ,
+              name:'file',//这里根据自己的实际情况改
+              header: {
+                // 'content-type':'multipart/form-data'
+                "REQUEST-SOURCE":"1",
+                "X-Auth-Token":userSpecicalInfo.userInfo.tokenId
+              },
+              formData:{},//这里是上传图片时一起上传的数据
+              success:(res)=>{
+                res =  JSON.parse(res.data);
+                if(res && res.errCode == 0){
+                  let isHas = that.checkUnique(res.data.idcardNum);
+                  if(isHas){
+                    wx.showModal({
+                      content: '您已经是进退场签字人，不需要再次添加，已自动为您删除',
+                      showCancel: false,
+                      confirmColor: '#FF8000',
+                      success: res=>{
+                        that.signPersonArr.splice(signPerson,1);
+                        that.$apply();
+                      }
+                    });
+                  }else{
+                    that.signPersonArr[signPerson].realName = res.data.realName;
+                    that.signPersonArr[signPerson].idcardNum = res.data.idcardNum;
+                    that.signPersonArr[signPerson].showContent=true;
+                  }
+                  that.$apply();
+                }else{
+                  that.signPersonArr[signPerson].IDImgZ = ''
+                  wx.showModal({
+                    content: '识别失败请重新识别',
+                    showCancel: false,
+                    confirmColor: '#FF8000',
+                    success: res=>{}
+                  });
+                  that.$apply();
+                }
+                tip.loaded();
+              },
+              fail:(err)=>{
+                that.signPersonArr[signPerson].IDImgZ = ''
+                wx.showModal({
+                  content: '识别失败请重新识别',
+                  showCancel: false,
+                  confirmColor: '#FF8000',
+                  success: res=>{}
+                });
+                tip.loaded();
+                that.$apply();
+              }
+            });
+          }
+        },
+
+        //上传身份证反面
+        uploadImgF(signPerson){
+          var that = this;
+          wx.chooseImage({
+            count: 1, // 默认9
+            sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+            sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+            success: function (res) {
+              // 返回选定照片的本地文件路径列表，tempFilePath可以作为img标签的src属性显示图片
+              var tempFilePaths = res.tempFilePaths
+              that.signPersonArr[signPerson].IDImgF = tempFilePaths[0];
+              that.$apply();
+            }
+          });
+        },
+
+        // 添加新的签约人
+        addSign(){
+          this.signPersonArr.push({
+            "realName":"", // 真实姓名
+            "idcardNum":"", // 身份证号
+            "mobile":"", // 联系号码
+            "images":[],
+            "IDImgZ":"",
+            "IDImgF":"",
+            'showContent':false,
+          });
+          this.$apply();
+        },
+
+        //删除签约人
+        delSign(idx) {
+          let that = this;
+          that.historyList.forEach((item,index)=>{
+            if(that.signPersonArr[idx].historyUserId && that.signPersonArr[idx].historyUserId == item.historyUserId ){
+              that.historyList[index].checked = false;
+            }
+          });
+          that.signPersonArr.splice(idx, 1);
+          that.$apply();
+        },
+
+        //进退场签约
+        showOrderPic(){
+          wx.navigateTo({
+            url: '/pages/order/show_order_pic?orderCode='+this.orderCode
+          })
+        },
+
+        //提交
+        async formSubmit(e){
+          let that = this;
+          //提交错误
+          if (!this.WxValidate.checkForm(e)) {
+            const errors = this.WxValidate.errorList[0]
+            // tip.error(`${errors.msg} `);
+            wx.showModal({
+              content: `${errors.msg}`,
+              showCancel: false,
+              confirmColor: '#FF8000',
+              success: res => {
+                if (res.confirm) {
+                }
+              }
+            })
+            return false
+          };
+          tip.loaded();
+          tip.loading('正在生成合同...');
+
+          if (that.signPersonArr.length > 1) {
+            for (let i = 0; i < that.signPersonArr.length; i++) {
+              if (i != 0 ) {
+                // 历史签约人不需要
+                if(!that.signPersonArr[i].isShow){
+                  let pathZ = await new Promise((resolve) => {
+                    wx.uploadFile({
+                      url: uploadFiel,
+                      filePath: that.signPersonArr[i].IDImgZ,
+                      name: 'file',//这里根据自己的实际情况改
+                      header: {
+                        // 'content-type':'multipart/form-data'
+                        "REQUEST-SOURCE": "1",
+                        "X-Auth-Token": userSpecicalInfo.userInfo.tokenId
+                      },
+                      formData: {},//这里是上传图片时一起上传的数据
+                      success: (res) => {
+                        if (res && res.data) {
+                          res = JSON.parse(res.data);
+                          if (res && res.errCode == 0) {
+                            resolve(res.data.path);
+                          }else{
+                            /*wx.showModal({
+                              content: `${res.data.data.message}`,
+                              showCancel: false,
+                              confirmColor: '#FF8000',
+                              success: res => {
+                                if (res.confirm) {
+                                }
+                              }
+                            })*/
+                          }
+                        }
+                      }
+                    });
+                  });
+                  let pathF = await new Promise((resolve) => {
+                    wx.uploadFile({
+                      url: uploadFiel,
+                      filePath: that.signPersonArr[i].IDImgF,
+                      name: 'file',//这里根据自己的实际情况改
+                      header: {
+                        // 'content-type':'multipart/form-data'
+                        "REQUEST-SOURCE": "1",
+                        "X-Auth-Token": userSpecicalInfo.userInfo.tokenId
+                      },
+                      formData: {},//这里是上传图片时一起上传的数据
+                      success: (res) => {
+                        if (res && res.data) {
+                          res = JSON.parse(res.data);
+                          if (res && res.errCode == 0) {
+                            resolve(res.data.path);
+                          }else{
+                            /*wx.showModal({
+                              content: `${res.data.data.message}`,
+                              showCancel: false,
+                              confirmColor: '#FF8000',
+                              success: res => {
+                                if (res.confirm) {
+                                }
+                              }
+                            })*/
+                          }
+                        }
+                      }
+                    });
+                  });
+                  that.signPersonArr[i].images = [pathZ, pathF];
+                  that.$apply();
+                }
+
+              }
+            }
+          }
+
+          let json = await api.signUrl({
+            query:{
+              "orderId":that.orderCode,
+              "callbackUrl":"/pages/order/order_sign_result?orderCode="+that.orderCode+'&projectName='+that.projectName,
+              "signers":that.signPersonArr
+            },
+            method:"POST"
+          });
+
+          if(json && json.data && (json.data.errCode == 0)){
+            tip.success('提交成功！',800).then(()=>{
+              //跳转webview
+              wx.navigateTo({
+                url: '/pages/main/web_sign?orderCode='+that.orderCode +'&type=1'+'&url='+ encodeURI(json.data.data.shortUrl)
+              });
+            })
+          }else{
+            tip.loaded();
+          }
+        },
+
+        //选择历史签约人
+        selectOne(index){
+          if(!this.historyList[index].checked){
+            this.historyList[index].checked = true;
+            this.signPersonArr.push({
+              historyUserId:this.historyList[index].historyUserId,
+              realName:this.historyList[index].realName, // 真实姓名
+              idcardNum:this.historyList[index].idcardNum, // 身份证号
+              idcardNumJx:this.historyList[index].idcardNumJx, // 身份证号
+              mobile:this.historyList[index].mobile, // 联系号码
+              IDImgZ:this.historyList[index].images?this.historyList[index].images[0]:'../../images/img_c_sfzzm.png',
+              IDImgF:this.historyList[index].images?this.historyList[index].images[1]:'../../images/img_c_sfzfm.png',
+              showContent:true,
+              isShow:true
+            });
+          }else{
+            this.historyList[index].checked = false;
+            this.signPersonArr.forEach((item,idx)=>{
+              if(item.historyUserId && item.historyUserId == this.historyList[index].historyUserId ){
+                this.signPersonArr.splice(idx, 1);
+              }
+            });
+          }
+
+          this.$apply();
+        }
+
+      };
+
+      // 获取历史签约人列表
+      async getHistoryList(){
+        const result = await api.getHistoryList({});
+
+        if(result && result.data && result.data.errCode == 0){
+          this.historyList = result.data.data;
+          this.historyList.forEach(item=>{
+            item.checked = false;
+            item.idcardNumJx = item.idcardNum.slice(0,3)+"********"+item.idcardNum.slice(item.idcardNum.length-3,item.idcardNum.length);
+          })
+        }
+        this.$apply();
+      }
+
+      //  获取 认证信息状态
+      async getCertification(){
+        let that = this;
+        // 请求个人信息 接口 获取 认证信息状态
+        let result  = await api.getCertification();
+        if(result && result.data && result.data.errCode == 0){
+          var idcardNum = result.data.data.idcardNum;
+          var idcardNumJx = idcardNum.slice(0,3)+"********"+idcardNum.slice(idcardNum.length-3,idcardNum.length);
+          this.signPersonArr = [];
+          this.signPersonArr.push({
+            "realName":result.data.data.realname, // 真实姓名
+            "idcardNum":idcardNum, // 身份证号
+            "idcardNumJx":idcardNumJx,
+            "mobile":result.data.data.mobile || userSpecicalInfo.userInfo.phoneNum,
+            "IDImgZ":"../../images/img_c_sfzzm.png",
+            "IDImgF":"../../images/img_c_sfzfm.png",
+            "isShow":true,
+            "disabled":true,
+            'showContent':true
+          });
+          that.$apply();
+        }else{
+          this.idNum='';
+        }
+      }
+
+      onLoad(options) {
+        let that = this;
+        that.isIphoneX = that.$parent.globalData.isIphoneX;
+        tip.loading();
+        that.orderCode = options.orderCode || '';
+        that.projectName = options.projectName || '';
+        let pages = getCurrentPages();    //获取加载的页面
+        let currentPage = pages[pages.length - 1];   //获取当前页面的对象
+        let url = currentPage.route;   //当前页面url
+        let query = currentPage.options;   //如果要获取
+        this.fromUrl = pages[pages.length - 2].route;
+        this.init();
+        tip.loaded();
+        this.pageShow=true;
+        this.$apply();
+      }
+
+      async onShow(){
+      }
+
+      onUnload() {
+        if(this.fromUrl == "pages/mine/personal_authentication"){
+         wx.navigateBack({
+           delta: 1
+         })
+        }
+      }
+
+      async init(){
+        tip.loading();
+        let that = this;
+        await this.initWxValidate();
+        await this.getCertification();
+        await this.getHistoryList();
+        tip.loaded();
+      }
+
+      //注册
+      initWxValidate(){
+        this.WxValidate = new WxValidate({
+          IDImgZ:{required: true},
+          IDImgF:{ required: true },
+          name:{ required: true},
+          identity: { required: true },
+          mobile:{required: true,tel:true}
+        }, {
+          IDImgZ: { required: '请上传身份证正面照', },
+          IDImgF:{ required: "请上传身份证背面照" },
+          name:{ required: '请输入姓名', },
+          identity:{ required: "请输入身份证号" },
+          mobile:{required:"请输入11位手机号码",tel:"请输入正确的11位手机号码"}
+        });
+      }
+
+      // 判断端身份证号是否重复
+      checkUnique(newIdcardNum){
+        let that = this;
+        if(that.signPersonArr && that.signPersonArr.length>0){
+          return that.signPersonArr.some(item => item.idcardNum ==  newIdcardNum)
+        }else{
+          return false
+        }
+      }
+
+    }
+  </script>
+
+
+
+<style lang="less">
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    background-color: #f5f5f5;
+    box-sizing: border-box;
+  }
+
+  .stepClass {
+    background-color: #fff5e6;
+    height: 98rpx;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    .text{
+      color:#747474;
+      font-size: 24rpx;
+      margin-left: 15rpx;
+      margin-top: 15rpx;
+      margin-right: 15rpx;
+      .title{
+        font-size: 24rpx;
+        color: #FF8000;
+      }
+      text{
+        font-size: 24rpx;
+        color: #747474;
+      }
+      .links{
+        font-size: 24rpx;
+        color: #576B95;
+        text-decoration: underline;
+        display: inline;
+      }
+    }
+
+ }
+
+  .stepimage{
+    width: 600rpx;
+    height: 60rpx;
+    margin-top: 30rpx;
+  }
+
+  .scrollView {
+    //display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 98rpx;
+
+  }
+  .signBox{
+
+  }
+
+  .historyBox{
+    margin-top: 20rpx;
+    background-color: #ffffff;
+    padding: 20rpx;
+    .title{
+      font-size: 24rpx;
+      color: #747474;
+      line-height: 32rpx;
+    }
+    .list{
+      overflow: hidden;
+      .item{
+        float: left;
+        font-size: 34rpx;
+        line-height: 48rpx;
+        margin-top: 10rpx;
+        margin-right: 80rpx;
+        &:last-child{
+          margin-right: 0;
+        }
+        .checkbox{
+          width: 34rpx;
+          height: 34rpx;
+          vertical-align: middle;
+        }
+        text{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #4E4E4E;
+          padding-left: 10rpx;
+          vertical-align: middle;
+        }
+        &.checked{
+          text{
+            color: #FF8000;
+          }
+        }
+      }
+    }
+  }
+
+  .newPersonContent{
+    margin-top: 20rpx;
+    width: 100%;
+    background-color: #ffffff;
+    .select_payMoneyBox{
+      .titleView{
+        width: 100%;
+        height: 50rpx;
+        flex-direction: row;
+        background-color: #f5f5f5;
+      }
+
+      .leftTitle{
+        float: left;
+        margin-left: 15rpx;
+        font-size: 24rpx;
+        color: #747474;
+        line-height: 50rpx;
+      }
+
+      .rightDelete{
+        float: right;
+        margin-right: 15rpx;
+        font-size: 24rpx;
+        color: #FF8000;
+        line-height: 50rpx;
+      }
+
+      .itemView{
+        width: 100%;
+        height: 90rpx;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        line-height: 90rpx;
+      }
+
+      .leftText{
+        margin-left: 15rpx;
+        color: #000000;
+        font-size: 34rpx;
+        line-height: 90rpx;
+        height: 90rpx;
+      }
+
+      .rightText{
+        flex: 1;
+        margin-right: 15rpx;
+        height: 90rpx;
+        line-height: 90rpx;
+        color: #000000;
+        input{
+          text-align: right;
+          line-height: 90rpx;
+          height:90rpx;
+        }
+      }
+
+      .lineView {
+        margin-left: 15rpx;
+        margin-right: 0rpx;
+        height: 1px;
+        background-color: #e5e5e5;
+      }
+
+      .imageContent{
+        width: 100%;
+        flex-direction: row;
+        overflow: hidden;
+      }
+
+      .leftImage{
+        float:left;
+        margin-left: 20rpx;
+        margin-top: 20rpx;
+        margin-bottom: 20rpx;
+        width: 340rpx;
+        height: 198rpx;
+        position: relative;
+
+      }
+
+      .rightImage{
+        float: right;
+        margin-right: 20rpx;
+        margin-top: 20rpx;
+        margin-bottom: 20rpx;
+        width: 340rpx;
+        height: 198rpx;
+        position: relative;
+
+      }
+
+      .cameraIcon{
+        width: 59rpx;
+        height: 47rpx;
+        position: absolute;
+        left: 50%;
+        margin-left: -24.5rpx;
+        top: 50%;
+        margin-top: -23.5rpx;
+      }
+      .IDImgZ{
+        width: 340rpx;
+        height: 198rpx;
+      }
+      .IDImgF{
+        width: 340rpx;
+        height: 198rpx;
+      }
+
+    }
+
+  }
+
+  .addSignPerson {
+    margin-top: 20rpx;
+    margin-left: 0rpx;
+    margin-right:0rpx;
+    color: #FF8000;
+    font-size: 30rpx;
+    text-align: center;
+  }
+  .tipText {
+    margin-left: 0;
+    margin-right: 0;
+    height: 50rpx;
+    line-height: 50rpx;
+    display: flex;
+    flex-direction: row;
+    margin-top: 50rpx;
+    padding-bottom: 20rpx;
+  }
+
+  .smallImage{
+    margin-left: 60rpx;
+    radio{
+      width:60rpx;
+      transform:scale(0.6);
+    }
+  }
+
+  .smalltip{
+    line-height: 50rpx;
+    font-size: 24rpx;
+    color:#747474;
+  }
+
+  .submit{
+    left: 0rpx;
+    right: 0rpx;
+    width: 100%;
+    line-height: 98rpx;
+    text-align: center;
+    font-size: 36rpx;
+    background-color: #FF8000;
+    color: #ffffff;
+    bottom: 0rpx;
+    position: fixed;
+    border-radius: 0;
+    z-index: 99;
+  }
+
+</style>

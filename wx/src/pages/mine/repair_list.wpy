@@ -1,0 +1,131 @@
+<template>
+  <view class="repairList">
+    <view class="repairContent">
+
+      <view class="cell" wx:for="{{list}}" wx:for-index="index" wx:for-item="item" wx:key="repairList" @tap="jumpToRepairInfo({{item.repairCode}})">
+         <view class="header">
+            <view class="title">
+              报修时间：<span>{{item.createDate}}</span>
+            </view>
+           <view class="stateDec">
+              <span class="Waiting" wx:if="{{item.status==20||item.status==30 ||item.status==40}}">{{item.statusName }}</span>
+             <span class="finish" wx:if="{{item.status==50}}">{{item.statusName}}</span>
+             <span class="" wx:if="{{item.status==60 || item.status==90 }}">{{item.statusName}}</span>
+           </view>
+         </view>
+        <view class="body">
+          <view class="body-cell">
+            保修单号：{{item.repairCode}}
+          </view>
+          <view class="body-cell">
+            故障情况：{{item.troubleInfo}}
+          </view>
+        </view>
+      </view>
+
+      <placeholder :show.sync="is_empty" message="暂无报修记录" top="150rpx" buttonTop="360rpx" bnttext="返          回" @jumpAction.user="jumpAction"></placeholder>
+    </view>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import Placeholder from "../../components/common/placeholder"; // 空数据提示
+
+  export default class repair_list extends wepy.page {
+    config = {
+      navigationBarTitleText: '报修记录',
+    };
+
+    data = {
+      list:[],
+      is_empty:false
+    };
+
+    components={
+      placeholder:Placeholder
+    };
+
+    onLoad (params, data) {
+      this.$apply(()=>{
+        this.list = data.preload.data;
+        this.is_empty = this.list.length > 0?false:true;
+      })
+    }
+
+    methods={
+      jumpAction(){
+        wx.navigateBack();
+      },
+
+      //跳转报修详情
+      jumpToRepairInfo(repairCode,e){
+
+        if(repairCode){
+          this.$preload({
+            repairCode:repairCode,
+            fromType:'create'
+          });
+          this.$navigate('/pages/order/repair_order_info');
+        }else{
+          wx.showModal({
+            content: '报修异常，请联系客户经理',
+            showCancel: false,
+            confirmColor: '#FF8000',
+            confirmText: "我知道了",
+            success: res=>{if (res.confirm) {}}
+          })
+        }
+      },
+
+    }
+  }
+</script>
+<style lang="less">
+
+  .repairContent{
+    width: 100%;
+    overflow: hidden;
+    font-family: PingFangSC-Regular;
+    .cell{
+      margin-bottom: 20rpx;
+      background-color: #FFFFFF;
+      .header{
+        display: flex;
+        flex-flow:  row nowrap;
+        justify-content: space-between;
+        margin-left: 20rpx;
+        border-bottom: 1rpx solid #E5E5E5;
+      .title{
+        padding: 20rpx;
+        padding-left: 0rpx;
+        font-size: 34rpx;
+        color: #333333;
+      }
+      .stateDec{
+        font-size: 30rpx;
+        padding: 20rpx;
+        .Waiting{
+          color: #FF8000;
+        }
+        .finish{
+          color: #0BB024;
+        }
+      }
+      }
+      .body{
+        padding: 20rpx;
+        .body-cell{
+          line-height: 46rpx;
+          color: #979797 ;
+          font-size: 30rpx;
+        }
+      }
+
+
+
+    }
+  }
+
+
+</style>

@@ -1,0 +1,1022 @@
+
+<template>
+  <view class="billWrap" wx:if="{{ pageShow }}">
+
+    <block wx:if="{{empty_tip_show}}">
+      <placeholder :showBnt.sync="empty_tip_btn_show" message="暂无对账数据"></placeholder>
+    </block>
+
+    <block wx:else>
+
+      <view class="contentHead">
+        <view class="payable-label">总费用(元)</view>
+        <view class="payable-price">{{totalCount }}</view>
+        <view class="bill-crate-time">截止到：{{sumDate}}</view>
+
+        <view class="pay-info-box">
+            <view class="pay-info-type-item">
+              <view class="pay-info-type-name">租金(元)</view>
+              <view class="pay-info-type-value">{{totalRentPricesCount }}</view>
+            </view>
+
+            <view class="pay-info-type-item">
+              <view class="pay-info-type-name">运费(元)</view>
+              <view class="pay-info-type-value">{{totalFreightsCount }}</view>
+            </view>
+
+            <view class="pay-info-type-item">
+              <view class="pay-info-type-name">维修费(元)</view>
+              <view class="pay-info-type-value">{{ totalClaimsCount }}</view>
+            </view>
+        </view>
+        <image class="dw-bg" src="../../images/img_dw.png"></image>
+      </view>
+
+      <view class="tipRules">
+        <text><text>提示：</text>仅含已退租设备运费，在租设备运费将会在退租后计算展示。</text>
+      </view>
+
+      <view class="current-payable-info">
+        <view class="titleBox">
+          <image class="" src="../../images/icon_title_zc.png"></image>
+          <view class="titleText">已支付</view>
+          <image class="" src="../../images/icon_title_yc.png"></image>
+        </view>
+        <view class="price-info">
+          <view class="price-info-item" @tap="jumpPayInfo" >
+            <view class="labelName">已付款</view>
+            <view class="labelValueBox">
+              <view class="labelValue">{{ totalLkCount>0?('¥'+totalLkCount):'0' }}</view>
+              <image src="../../images/arrow_left.png"></image>
+            </view>
+          </view>
+          <view class="price-info-item" @tap="jumpCouponInfo">
+            <view class="labelName">已用券</view>
+            <view class="labelValueBox">
+              <view class="labelValue">{{totalCouponCount>0?('¥'+totalCouponCount):'0'}}</view>
+              <image src="../../images/arrow_left.png"></image>
+            </view>
+          </view>
+          <view class="price-info-item" @tap="jumpRefundInfo" >
+            <view class="labelName">已退款</view>
+            <view class="labelValueBox">
+              <view class="labelValue red-font" wx:if="{{ totalRefundCount && totalRefundCount>0 }}">{{ '-¥'+ totalRefundCount }}</view>
+              <view class="labelValue" wx:else>0</view>
+              <image src="../../images/arrow_left.png"></image>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="dev-info" wx:if="{{ finStatementApprove && finStatementApprove.length>0 }}">
+          <view class="dev-list-box">
+            <view class="dev-item" wx:for="{{ finStatementApprove }}" wx:for-item="item" wx:for-index="index" wx:key="finStatementApprove_this">
+              <view class="dev-item-title">
+                <view class="name">订单编号：{{ item.finStatement.orderCode }}</view>
+              </view>
+              <view class="dev-item-wrap" wx:for="{{ item.devList.wxTotalList }}" wx:for-item="devItem" wx:for-index="index" wx:key="wxTotalList_this">
+                <view class="dev-item-code-box">
+                  <view class="dev-item-code-title">
+                    <view class="name">设备编号：{{ devItem.devFactoryCode }}</view>
+                    <view class="state {{ devItem.comments =='在租'?'lived':'' }}">{{ devItem.comments }}</view>
+                  </view>
+                  <view class="dev-item-content">
+                    <view>品牌型号：{{ devItem.devProductName || devItem.devModelCode  }}</view>
+                    <view>起租时间：{{ devItem.beginRentDate }}</view>
+                    <view>退租时间：{{ devItem.exitRentDate || '' }}</view>
+                    <view>租赁天数：<text>{{ devItem.reallyCount }}天</text>单价：{{ devItem.rentPrice }}</view>
+                  </view>
+                </view>
+
+                <view class="dev-item-sum">
+                  <view class="sumBox"><text class="sumLabel">租金</text> <text class="sumValue">{{ '¥'+devItem.price }}</text></view>
+                  <view class="dateBox" @tap="jumpCalendar({{item.finStatement.orderCode}},{{devItem.beginRentDate}},{{devItem.exitRentDate}},{{devItem.devEnterCode}},{{devItem.devFactoryCode}})">
+                    <image src="../../images/icon_rl.png"></image>
+                    <text>费用月历</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+
+          </view>
+        </view>
+
+      <view class="btn-box allBtnBox " >
+        <!--签约按钮只有在下单和待签约下显示 10或20-->
+        <view class="submitBtnBox" wx:if="{{ totalYsPriceCount >0 }}" >
+          <view class="priceInfo" >
+            <view class="sumInfo" >
+              <view class="labelName">待支付：</view>
+              <view class="price">¥{{totalYsPriceCount}}</view>
+            </view>
+          </view>
+          <button class="btn btn_yellow" @tap="jumpToPay">去支付</button>
+        </view>
+
+        <view class="submitBtnBox" wx:if="{{ !(totalYsPriceCount >0) }}">
+          <view class="priceInfo"  >
+            <view class="sumInfo" >
+              <view class="labelName">已付清账款</view>
+              <view class="price"></view>
+            </view>
+          </view>
+          <button class="btn btn_yellow" @tap="jumpToPay">预  付</button>
+        </view>
+      </view>
+
+    </block>
+
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+import api from "../../api/api";
+import {
+  USER_SPECICAL_INFO,
+  USER_INFO,
+  SYSTEM_INFO,
+  ADDRESS_ID,
+  USER_CITY,
+  SEL_CLASS_CODE,
+  USER_PHONE
+} from "../../utils/constant";
+import Placeholder from "../../components/common/placeholder";
+var Moment = require("../../utils/moment.js");
+let isClick = true;
+export default class bill extends wepy.page {
+  config = {
+    navigationBarTitleText: '对账',
+    "enablePullDownRefresh": true
+  };
+
+  components = {
+    placeholder:Placeholder,
+  };
+
+  data = {
+    pageShow:false,
+    empty_tip_btn_show:false,
+    empty_tip_show:true,
+
+    totalCount:0, //总费用
+    totalRentPricesCount:0, //总租金
+    totalFreightsCount:0, //总运费
+    totalClaimsCount:0, //总维修费
+    totalLkCount:0, //总来款
+    totalRefundCount:0, //总退款
+    totalCouponCount:0, //总用券
+    finStatementApprove:[], //
+    totalYsPriceCount:0, //待支付金额
+    totalLk:{
+        wxLkdetail:[]
+     }, //来款记录
+    totalCouponUseDetail:null, //用券记录
+    couponPayreqCodes:'', //用券记录
+    totalRefundDetail:{
+      finStatementRefundDetailVo:[],
+    }, //退款记录
+    sumDate:'',
+    maxYsOrderCode:'',//最大的订单
+  };
+
+  onShow() {
+    let that = this;
+    this.set_page_show(true);
+    this.$parent.isCanLogin();
+    let userInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+    if(userInfo && userInfo.userInfo && userInfo.userInfo.isActive == 1){
+      // this.set_empty_tip_show(false);
+      //that.getOrderList(false);
+      this.getBillInfo();
+      // 埋点 进入页面信息
+      that.$parent.setWriteEnterInfoLog('对账','/pages/main/bill');
+    }
+
+
+  }
+
+  onHide(){
+    let that = this;
+    // 生命周期函数--监听页面隐藏
+
+    // 埋点 进入页面信息
+    that.$parent.setWriteLeaveInfoLog();
+  }
+
+  onPullDownRefresh() {
+    let userInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+    if(userInfo && userInfo.userInfo && userInfo.userInfo.isActive == 1) {
+      this.getBillInfo();
+    }
+    wx.stopPullDownRefresh()
+  }
+
+  set_page_show(show){
+    this.$apply(()=>{
+      this.pageShow = show;
+    });
+  }
+
+  set_empty_tip_show(show){
+    this.$apply(()=>{
+      this.empty_tip_show = show;
+    });
+  }
+
+  async getBillInfo(){
+    let result = await api.statementApproveInfo();
+    if(result && result.data && result.data.data && result.data.errCode === 0){
+      // 对账单 在截止日期无设备数据 则不显示
+      if(result.data.data.finStatementApprove && result.data.data.finStatementApprove.length > 0){
+        this.$apply(()=>{
+          this.totalCount = result.data.data.totalCount;
+          this.totalRentPricesCount = result.data.data.totalRentPricesCount;
+          this.totalFreightsCount = result.data.data.totalFreightsCount;
+          this.totalClaimsCount = result.data.data.totalClaimsCount;
+          this.totalLkCount = result.data.data.totalLkCount;
+          this.totalRefundCount = result.data.data.totalRefundCount;
+          this.totalCouponCount = result.data.data.totalCouponCount;
+          this.finStatementApprove = result.data.data.finStatementApprove;
+          this.orderCode = result.data.data.finStatementApprove[0].finStatement.orderCode;
+          this.totalYsPriceCount = result.data.data.totalYsPriceCount;
+          this.sumDate = result.data.data.sumDate;
+          this.totalLk.wxLkdetail = result.data.data.totalLk.wxLkdetail;
+          this.totalCouponUseDetail = result.data.data.totalCouponUseDetail;
+          this.couponPayreqCodes = result.data.data.couponPayreqCodes;
+          this.totalRefundDetail = result.data.data.totalRefundDetail;
+          this.maxYsOrderCode = result.data.data.maxYsOrderCode;
+          this.set_empty_tip_show(false);
+        });
+      } else {
+        this.set_empty_tip_show(true);
+      }
+
+    } else {
+      this.set_empty_tip_show(true);
+    }
+  }
+
+  async priceList(orderCode,serEnterCode,deviceCode,beginRentDate){
+    let result = await api.incomeList({
+      query:{
+        orderCode:orderCode,
+        serEnterCode:serEnterCode,
+        deviceCode:deviceCode,
+        beginRentDate:beginRentDate,
+      }
+    });
+    if(result && result.data && result.data.data &&result.data.errCode === 0){
+      let list = result.data.data;
+      let sFtv = [];
+      list.forEach((item)=>{
+        sFtv.push({
+          year:new Date(item.calculationDate).getFullYear(),
+          month:new Date(item.calculationDate).getMonth()+1,
+          day:new Date(item.calculationDate).getDate(),
+          name:"",
+          price:'¥'+item.rentalFinal,
+          fullDate:new Date(item.calculationDate).getFullYear()+'/'+(new Date(item.calculationDate).getMonth()+1)+'/'+new Date(item.calculationDate).getDate(),
+          className:''
+        })
+      });
+      return sFtv;
+    }else {
+      throw result;
+    }
+  }
+
+  async getCouponInfo(){
+      let result = await api.getCouponInfo({
+      query:{
+        couponPayreqCodes:this.couponPayreqCodes
+      }
+    });
+    if(result && result.data && result.data.data &&result.data.errCode === 0){
+      return result.data.data;
+    }else {
+      throw result;
+    }
+  }
+
+  methods = {
+    onImageError: function(ev){
+      let that = this;
+      var _errImg=ev.target.dataset.errImg;
+      var _errObj={};
+      _errObj[_errImg]="../../images/img_zwt.png";
+      console.log( ev.detail.errMsg+"----" + "----" +_errImg );
+      that.setData(_errObj);
+    },
+
+    jumpPayInfo(){
+      // if( !(this.totalLk && this.totalLk.wxLkdetail && this.totalLk.wxLkdetail.length>0) ){
+      //   return false
+      // }
+
+      if(this.totalLkCount == 0){
+        this.totalLk.wxLkdetail = [];
+      }
+      this.$preload({
+        data:this.totalLk.wxLkdetail
+      })
+      this.$navigate('/pages/bill/pay_record_list');
+    },
+
+    jumpCouponInfo(){
+      let arr  = [];
+      if(!this.couponPayreqCodes){
+        arr = [];
+        this.$preload({
+          data:arr,
+        });
+        this.$navigate('/pages/bill/coupon_record_list');
+      }else{
+        this.getCouponInfo().then(res=>{
+          this.$preload({
+            data:res,
+          });
+          this.$navigate('/pages/bill/coupon_record_list');
+        },err=>{
+          console.log('err - err',err)
+        })
+      }
+    },
+
+    jumpRefundInfo(){
+      this.$preload({
+        data:this.totalRefundDetail.finStatementRefundDetailVo || [],
+      });
+      this.$navigate('/pages/bill/refund_record_list');
+    },
+
+    jumpToPay(){
+      let that = this;
+      // that.$parent.setEventsLogs({
+      //   event_id:'bill_detail_pay',
+      //   params:{
+      //     order_code:  that.orderCode,
+      //     payAmount: that.payAmount,
+      //     rent: that.rent,
+      //     freight: that.freight,
+      //     prepayBondPrice: that.prepayBondPrice,
+      //     discounted: that.discounted,
+      //     unPayAmount: that.unPayAmount,
+      //   }
+      // });
+      this.$preload({
+        orderCode:this.maxYsOrderCode,
+        payAmount:this.totalYsPriceCount>0?this.totalYsPriceCount:0
+      })
+      this.$navigate('/pages/bill/bill_start_pay');
+    },
+
+    jumpCalendar(orderCode,beginTime,endTime,devEnterCode,devCode){
+      var sFtv = [];
+      if(!endTime){
+        endTime = Moment( new Date( new Date().getTime() - 24*60*60*1000) ).format('yyyy-MM-dd');
+      }else{
+        endTime = endTime.split(" ")[0].replace(/-/g,'/');
+      }
+      let beginRentDate = beginTime.split(" ")[0];
+      beginTime = beginTime.split(" ")[0].replace(/-/g,'/');
+
+      if(isClick){
+        isClick = false
+        this.priceList(orderCode,devEnterCode,devCode,beginRentDate).then(res=>{
+          isClick = true;
+          // console.log('preload',{
+          //   devCode:devCode || '',
+          //   beginTime:Moment(new Date(beginTime)).format('yyyy-MM-dd'),
+          //   endTime:Moment(new Date(endTime)).format('yyyy-MM-dd'),
+          //   maxMonth:maxMonth,
+          //   sFtv:res
+          // })
+          if(res && res.length>0){
+            let endTimeDate = res[res.length-1].fullDate; // 数组中最后一条记录的 时间
+            endTime = new Date(endTimeDate).getTime() - new Date(endTime).getTime() > 0?endTimeDate:endTime;
+            let maxMonth = 0;
+            if(Moment(new Date(endTime)).format('yyyy') ==  Moment(new Date(beginTime)).format('yyyy')){
+              maxMonth = Number(Moment(new Date(endTime)).format('M')) - Number(Moment(new Date(beginTime)).format('M')) + 1;
+            }else{
+              let x= Number(Moment(new Date(endTime)).format('yyyy')) - Number(Moment(new Date(beginTime)).format('yyyy'));
+              maxMonth = Number(Moment(new Date(endTime)).format('M'))+12*x - Number(Moment(new Date(beginTime)).format('M')) + 1;
+            }
+
+            this.$preload({
+              devCode:this.devCode || '',
+              beginTime:Moment(new Date(beginTime)).format('yyyy-MM-dd'),
+              endTime:Moment(new Date(endTime)).format('yyyy-MM-dd'),
+              maxMonth:maxMonth,
+              sFtv:res
+            })
+            this.$navigate('/pages/bill/calendar');
+          }
+
+        },err=>{
+          isClick = true;
+          console.log('err - err',err)
+        });
+      }
+
+
+    }
+
+  }
+}
+</script>
+
+<style lang="less">
+  .billWrap{
+    .empty {
+      margin-top: 300rpx;
+    }
+
+
+    padding-bottom: 90rpx;
+    .shareLoginBox{
+      .mask{
+        position: fixed;
+        z-index: 99;
+        top: 0;
+        right: 0;
+        left: 0;
+        bottom: 0;
+        background: rgba(0,0,0,.6);
+      }
+      .dialogBox{
+        z-index: 100;
+        width: 80%;
+        position: fixed;
+        max-width: 300px;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        text-align: center;
+        border-radius: 3px;
+        overflow: hidden;
+        background-color: #ffffff;
+        .dialogHead{
+          text-align: center;
+          //font-weight: 700;
+          font-size: 18px;
+          padding: 0.8em 0em .2em;
+          line-height: 30px;
+          margin-top: 0;
+          color:'#000000';
+        }
+        .dialogBody{
+          max-height: 300px;
+          overflow-y: auto;
+          padding: 0.2em 1.6em .8em;
+          min-height: 40px;
+          font-size: 16px;
+          line-height: 1.3;
+          word-wrap: break-word;
+          word-break: break-all;
+
+          .content{
+            font-size: 36rpx;
+            color: #F94747;
+            text-align: center;
+            margin-top: 30rpx;
+          }
+          .tip{
+            font-size: 30rpx;
+            color: #747474;
+            text-align: center;
+            margin-top: 18rpx;
+            padding-bottom:20rpx;
+          }
+          input{
+            border: 1px solid #E5E5E5;
+            font-size: 30rpx;
+            color: #333;
+            letter-spacing: 0;
+            height: 80rpx;
+            line-height: 80rpx;
+            padding: 0 20rpx;
+            text-align: left;
+            &.placeholder{
+              font-size: 30rpx;
+              color: #757575;
+            }
+          }
+        }
+        .dialogFoot{
+          position: relative;
+          line-height: 48px;
+          font-size: 18px;
+          display: flex;
+          button{
+            display: block;
+            flex: 1;
+            color: #FF8000;
+            text-decoration: none;
+            border-radius: 0;
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            position: relative;
+            border: 0;
+
+            &:active{
+              background-color: #eee
+            }
+            &:after,&:before,&::after{
+              border: none;
+              border-radius: 0;
+            }
+            &.cancel{
+              color: #333;
+            }
+            &.sure{
+              &:after{
+                content: " ";
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 1px;
+                bottom: 0;
+                border-left: 1px solid #d5d5d6;
+                color: #d5d5d6;
+                transform-origin: 0 0;
+                transform: scaleX(.5);
+              }
+            }
+          }
+          &:after{
+            content: " ";
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            height: 1px;
+            border-top: 1px solid #d5d5d6;
+            color: #d5d5d6;
+            transform-origin: 0 0;
+            transform: scaleY(.5);
+          }
+        }
+      }
+
+    }
+
+    .contentHead{
+      position: relative;
+      background-color: #FF8000;
+      padding-bottom: 75rpx;
+      padding-top: 30rpx;
+      .payable-label{
+        text-align: center;
+        font-size: 28rpx;
+        color: #ffffff;
+        line-height: 40rpx;
+      }
+      .payable-price{
+        text-align: center;
+        font-size: 70rpx;
+        color: #ffffff;
+        line-height: 80rpx;
+        font-family: Arial;
+      }
+      .bill-crate-time{
+        text-align: center;
+        font-size: 24rpx;
+        color: #ffffff;
+        line-height: 34rpx;
+      }
+      .pay-info-box{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        .pay-info-type-item{
+          margin-top: 50rpx;
+          position: relative;
+          z-index: 2;
+          width: 240rpx;
+
+          .pay-info-type-name{
+            text-align: center;
+            color: #FFFFFF;
+            line-height: 40rpx;
+            font-size: 28rpx;
+          }
+          .pay-info-type-value{
+            font-family: Arial;
+            margin-top: 20rpx;
+            text-align: center;
+            line-height: 42rpx;
+            color: #ffffff;
+            font-size: 36rpx;
+          }
+        }
+
+        .line{
+          width: 1px;
+          height: 200rpx;
+          background-color: #FFBF80;
+          opacity: 0.8;
+          position: absolute;
+          left: 50%;
+          bottom: 96rpx;
+        }
+      }
+      .dw-bg{
+        left: 0;
+        position: absolute;
+        bottom: 0;
+        width: 750rpx;
+        height: 104rpx;
+        z-index: 1;
+      }
+    }
+
+    .tipRules{
+      background-color: #FFF5E6;
+      padding: 10rpx 20rpx;
+      white-space:nowrap;
+      text{
+        white-space:nowrap;
+        font-size: 24rpx;
+        color: #747474;
+        line-height: 32rpx;
+        text{
+          color: #FF8000;
+        }
+      }
+    }
+
+    .titleBox{
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      line-height: 90rpx;
+      height: 90rpx;
+      background-color: #ffffff;
+      image{
+        width: 32rpx;
+        height: 32rpx;
+      }
+      .titleText{
+        color: #343434;
+        font-size: 34rpx;
+        font-weight: 700;
+        padding: 0 20rpx;
+      }
+
+    }
+    .price-info{
+      /*padding-bottom: 30rpx;*/
+      border-top: 1px solid #e5e5e5;
+      background-color: #ffffff;
+      .price-info-item{
+        padding: 20rpx 20rpx 20rpx 0;
+        margin-left: 20rpx;
+        height: 48rpx;
+        line-height: 48rpx;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e5e5;
+        &:last-child{
+          border: 0;
+        }
+
+        .labelName{
+          color: #666666;
+          font-size: 34rpx;
+        }
+        .labelValueBox{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+        }
+        .labelValueBox image{
+          width: 20rpx;
+          height: 20rpx;
+          margin-left: 10rpx;
+        }
+        .labelValue{
+          color: #333333;
+          font-size: 34rpx;
+          &.red-font{
+            color: #F94747;
+          }
+        }
+      }
+    }
+    .dev-info{
+      margin-top: 20rpx;
+
+      .dev-list-box{
+        .dev-item{
+          &:first-child{
+            margin-top: 0;
+          }
+          margin-top: 20rpx;
+
+          .dev-item-wrap{
+            margin-bottom: 10rpx;
+            background-color: #ffffff;
+
+           &:last-child{
+             margin-bottom: 0;
+           }
+          }
+
+          .dev-item-title{
+            background-color: #ffffff;
+            border-top: 1px solid #e5e5e5;
+            height: 90rpx;
+            line-height: 90rpx;
+            padding: 0 20rpx 0 0;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            .name{
+              height: 48rpx;
+              line-height: 48rpx;
+              border-left: 6rpx solid #FF8000;
+              padding-left: 14rpx;
+              font-size: 34rpx;
+              color: #333333;
+            }
+          }
+          .dev-item-code-box{
+            border-top: 1px solid #e5e5e5;
+            padding: 20rpx;
+          }
+          .dev-item-code-title{
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            line-height: 42rpx;
+            .name{
+              font-size: 28rpx;
+              color: #333333;
+            }
+            .state{
+              font-size: 28rpx;
+              color: #999;
+              &.lived{
+                color:#0BB024;
+              }
+            }
+          }
+          .dev-item-content{
+            view{
+              line-height: 42rpx;
+              color: #979797;
+              font-size: 28rpx;
+              text{
+                display: inline-block;
+                line-height: 42rpx;
+                color: #979797;
+                font-size: 28rpx;
+                min-width: 90rpx;
+                padding-right: 20rpx;
+              }
+            }
+          }
+          .dev-item-sum{
+            border-top: 1px solid #e5e5e5;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20rpx;
+            height: 90rpx;
+            line-height: 90rpx;
+            .label{
+              font-size: 34rpx;
+              color: #999;
+            }
+            .dateBox{
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              image{
+                width: 24rpx;
+                height: 24rpx;
+                margin-right: 8rpx;
+              }
+              text{
+                font-size: 24rpx;
+                color: #FF8000;
+              }
+            }
+            .sumBox{
+              .sumLabel{
+                font-size: 34rpx;
+                color: #333;
+              }
+              .sumValue{
+                padding-left: 5rpx;
+                font-size: 34rpx;
+                color: #FF8000;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .btn-box{
+      width: 750rpx;
+      position: fixed;
+      z-index: 2;
+      left: 0;
+      bottom: 0;
+      overflow: hidden;
+      background-color: #FFFFFF;
+     // box-shadow: 0px -2px 2px 0px rgba(0, 0, 0, 0.08);
+
+      .btn-content{
+        display: flex;
+        padding: 20rpx;
+        justify-content: space-between;
+      }
+      .feedback{
+        margin: 0;
+        padding: 0;
+        box-shadow: 0;
+        border: 2rpx solid #FF8000;
+        border-radius: 8rpx;
+        width: 336rpx;
+        line-height: 90rpx;
+        background-color: #FFFFFF;
+        text-align: center;
+        color: #FF8000;
+      }
+
+      .paybtn{
+        margin: 0;
+        padding: 0;
+        box-shadow: 0;
+        border: 2rpx solid #FF8000;
+        border-radius: 8rpx;
+        width: 336rpx;
+        line-height: 90rpx;
+        text-align: center;
+        background-color: #FF8000;
+        color: #ffffff;
+      }
+    }
+
+
+    allBtnBox{
+      position: fixed;
+      z-index:2;
+      width: 100%;
+      left: 0;
+      bottom: 0;
+    }
+
+    .submitBtnBox{
+      height: 98rpx;
+      display: flex;
+      flex-direction: row;
+      background-color: #ffffff;
+      .priceInfo{
+        flex: 1;
+        padding: 20rpx;
+        border-top: 1px solid #E5E5E5;
+        .sumInfo{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          .labelName{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #B2B2B2;
+            font-size: 34rpx;
+          }
+          .price{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #FF8000;
+            font-size: 34rpx;
+            margin-left: 10rpx;
+          }
+          .tips{
+            margin-left: 15rpx;
+            width: 30rpx;
+            height: 30rpx;
+          }
+        }
+        .tipText{
+          height: 26rpx;
+          line-height: 26rpx;
+          color: #B2B2B2;
+          font-size: 18rpx;
+        }
+      }
+      .btn_yellow{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#FF8000;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+      .btn_gray{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#B2B2B2;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+    }
+
+    .btnBox{
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+      background-color: #ffffff;
+      padding: 24rpx 0;
+      border-top: 1px solid #E5E5E5;
+      .btns{
+        height: 58rpx;
+        text-align: center;
+        line-height: 58rpx;
+        border: 1px solid #666;
+        color: #666666;
+        background-color: #ffffff;
+        padding: 0 30rpx;
+        font-size: 26rpx;
+        margin-right: 20rpx;
+        vertical-align: middle;
+        &.btn_bor_ye{
+          background-color: #ffffff;
+          border: 1px solid #FF8000;
+          text{
+            font-size: 26rpx;
+            color: #FF8000;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+        &.btn_bg_ye{
+          background-color: #FF8000;
+          border: 1px solid #FF8000;
+          image{
+            width: 34rpx;
+            height: 34rpx;
+            vertical-align: middle;
+            margin-right: 10rpx;
+            display: inline-block;
+          }
+          text{
+            font-size: 26rpx;
+            color: #ffffff;
+            display: inline-block;
+            width: 170rpx;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+        &.btn_bor_bl{
+          background-color: #ffffff;
+          border: 1px solid #666;
+          text{
+            font-size: 26rpx;
+            color: #666666;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+        &.btn_bor_gr{
+          background-color: #ffffff;
+          border: 1px solid #999999;
+          text{
+            font-size: 26rpx;
+            color: #999999;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+
+      }
+    }
+  }
+</style>

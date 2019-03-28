@@ -1,0 +1,130 @@
+<template>
+  <block>
+    <view class="list-wrap" wx:if="{{ pageShow }}">
+      <view class="item" wx:for="{{ totalLk }}" wx:for-item="item" wx:for-index="index" wx:key="totalLk_this">
+        <view class="item-content">
+          <view class="lr-box">
+            <view class="l-name">单号</view>
+            <view class="r-value">{{ item.payreqCode }}</view>
+          </view>
+          <view class="lr-box">
+            <view class="l-name">付款方式</view>
+            <view class="r-value">{{ item.lkwayCn }}</view>
+          </view>
+          <view class="lr-box">
+            <view class="l-name">付款时间</view>
+            <view class="r-value">{{ item.lkDate }}</view>
+          </view>
+          <view class="lr-box">
+            <view class="l-name">入账状态</view>
+            <view class="r-value">{{ item.lkStatus }}</view>
+          </view>
+        </view>
+        <view class="item-bottom">付款金额 <text>{{ '¥' + item.money }}</text></view>
+      </view>
+    </view>
+    <placeholder :show.sync="is_empty" message="暂无付款记录" top="150rpx" buttonTop="360rpx" :showBnt.sync="isShowBtn"></placeholder>
+  </block>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import Placeholder from "../../components/common/placeholder"; // 空数据提示
+  export default class pay_record_list extends wepy.page {
+    config = {
+      navigationBarTitleText: '付款记录',
+      navigationBarBackgroundColor: '#FF8000'
+    };
+
+    components={
+      placeholder:Placeholder
+    };
+
+    data = {
+      isShowBtn:false,
+      is_empty: false,
+      pageShow:false,
+
+      totalLk:[]
+    };
+
+    onLoad(options,data) {
+      console.log(options,data)
+      if(data.preload.data && data.preload.data.length >0){
+        this.set_page_show(true);
+        this.set_empty_show(false);
+      }else{
+        this.set_page_show(false);
+        this.set_empty_show(true);
+      }
+      this.$apply(()=>{
+        this.totalLk = data.preload.data
+      });
+    }
+
+    set_page_show(val){
+      this.$apply(()=>{
+        this.pageShow = val
+      })
+    }
+
+    set_empty_show(show){
+      this.$apply(()=>{
+        this.is_empty = show;
+      });
+    }
+
+
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+  }
+  .list-wrap{
+    padding-bottom: 68rpx;
+
+    .item{
+      margin-top: 10rpx;
+      &:first-child{
+        margin-top: 0;
+      }
+    }
+    .item-content{
+      background-color: #ffffff;
+      padding: 20rpx 0;
+    }
+    .lr-box{
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20rpx;
+      .l-name{
+        font-size: 30rpx;
+        line-height: 50rpx;
+        color: #979797;
+      }
+      .r-value{
+        color: #333333;
+        font-size: 30rpx;
+        line-height: 50rpx;
+      }
+    }
+
+    .item-bottom{
+      background-color: #ffffff;
+      border-top: 1px solid #e5e5e5;
+      padding: 0 20rpx;
+      line-height: 90rpx;
+      color: #333333;
+      font-size: 34rpx;
+      text-align: right;
+      text{
+        color: #ff8000;
+      }
+    }
+  }
+
+</style>

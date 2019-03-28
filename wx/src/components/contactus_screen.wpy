@@ -1,0 +1,112 @@
+<template>
+  <block wx:if="{{hiddenView}}">
+    <view class="black_content" @tap="hiddenModel">
+      <view class="contentView">
+        <button class="wxcontact" open-type="contact" session-from="weapp" bindtap="contactWx">微信沟通</button>
+        <button class="phonecontact" bindtap="callPhone">电话沟通</button>
+        <button class="cancelcontact" bindtap="hiddenModel">取消</button>
+      </view>
+
+    </view>
+  </block>
+
+</template>
+
+<script>
+  import wepy from 'wepy'
+  export default class images_content extends wepy.component {
+    props = {
+      hiddenView: {
+        type: Boolean,
+        Defalut: null,
+      },
+    }
+
+    data = {
+
+    }
+
+    methods = {
+      //拨打电话
+      callPhone:function () {
+        this.$parent.$parent.setEventsLogs({
+          event_id:'detail_customer_tel',
+          params:{}
+        });
+
+        wx.makePhoneCall({
+          phoneNumber: '400-805-8558'
+        })
+      },
+
+      contactWx(){
+        this.$parent.$parent.setEventsLogs({
+          event_id:'detail_customer_wx',
+          params:{}
+        });
+      },
+
+      //电话客服
+      hiddenModel:function () {
+        this.$emit("hiddenModel");
+      }
+
+    }
+
+
+  }
+</script>
+<style lang="less">
+  .contentView {
+    width: 100%;
+    height: 321rpx;
+    bottom: 0;
+    position: fixed;
+    background-color: #efeff4;
+  }
+  .black_content {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.7);
+    overflow: hidden;
+  }
+
+  .wxcontact{
+    width: 100%;
+    height:100rpx;
+    color: #1d1d1d;
+    border-bottom: 1rpx;
+    border-radius: 0;
+    &::after{
+     border: none;
+   }
+  }
+
+  .phonecontact{
+    width: 100%;
+    height:100rpx;
+    color: #1d1d1d;
+    border-radius: 0;
+    margin-top: 1rpx;
+    &::after{
+      border: none;
+    }
+   /*// margin-bottom:250rpx;*/
+  }
+
+  .cancelcontact{
+    width: 100%;
+    height:100rpx;
+    color: #1d1d1d;
+    border-radius: 0;
+    margin-top: 20rpx;
+    &::after{
+      border: none;
+    }
+    /*margin-bottom: 100rpx;*/
+  }
+</style>

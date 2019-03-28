@@ -1,0 +1,241 @@
+<template>
+  <view wx:if ="{{ pageShow }}" class="wrap addressListWrap   {{ isIphoneX?'iphoneXClassPB':'' }}" >
+    <view class="list">
+      <view class="item" wx:for="{{list}}" wx:for-item="item" wx:for-index="orderIndex" wx:key="this" @tap="selectItem({{item}})">
+        <view class="addressName">{{ item.addressDetail }}</view>
+        <view class="projectName">{{ item.projectName }}</view>
+        <icon class="selected" type="success_no_circle" size="16" color="#FF8000" wx:if="{{item.id == selectedId && type === 2}}"/>
+      </view>
+    </view>
+    <view class="bottom_btn   {{ isIphoneX?'iphoneXClass':'' }}" >
+      <button class="submit" @tap="addAddress">+ 添加用车地址</button>
+    </view>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+
+  let appConfig = require('../../utils/app_config');
+  let amapFile = require('../../libs/amap-wx.js');
+
+  import {NOTIFI_ORDER_SELECT_ADDRESS} from '../../utils/notif_const'
+
+  import WxNotificationCenter from '../../libs/WxNotificationCenter';
+
+  export default class addressList extends wepy.page {
+    config = {
+      navigationBarTitleText: '用车地址',
+      navigationBarBackgroundColor: '#FF8000'
+    };
+
+    data = {
+      pageShow:false,
+      isIphoneX:false,
+      isFristLoad:true,
+      fromUrl:'', // 那个页面来的；
+      toUrl:'', // 要去那个页面；
+      list:[], // 地址列表
+      type:1, // 1我的城市列表 2，选择城市列表
+      fromParams:{},
+      selectedId:0,
+      currentAddressInfo:{
+        latitude:"",
+        longitude:"",
+        address:""
+      }
+    };
+
+    onLoad(option) {
+      this.isIphoneX = this.$parent.globalData.isIphoneX;
+      tip.loading();
+      if(option && option.params){
+        this.fromParams = JSON.parse(decodeURIComponent(option.params));
+        this.type = this.fromParams.type;
+        this.fromUrl = this.fromParams.fromUrl;
+        this.selectedId = this.fromParams.selectedId || 0;
+      }else{
+        this.fromParams = {};
+        this.type = 1;
+        this.fromUrl = '';
+        this.selectedId = 0;
+      }
+      this.init();
+
+      console.log(1)
+      this.$apply();
+    };// end onLoad
+
+    onReady(){
+      this.isFristLoad = false;
+    }
+    onShow() {
+      //第一次不执行
+      if(!this.isFristLoad){
+        tip.loading();
+        this.init();
+      }
+    };// end onShow
+
+    methods = {
+      // 跳转添加地址页面
+      addAddress(){
+        tip.loading();
+        let that = this;
+        var key = appConfig.Config.amapKey;
+        var myAmapFun = new amapFile.AMapWX({key: key});
+        myAmapFun.getRegeo({
+          success: (res) => {
+            const seaArea = res[0].regeocodeData.seaArea;
+            const province = res[0].regeocodeData.addressComponent.province || '';
+            const city = res[0].regeocodeData.addressComponent.city || '';
+            const district = res[0].regeocodeData.addressComponent.district || '';
+            const formatted_address = res[0].regeocodeData.formatted_address || '';
+            const township = res[0].regeocodeData.addressComponent.township || '';
+            const address = typeof formatted_address === "string" ? formatted_address.replace(province, "").replace(city, "").replace(district, "") : '';
+            that.currentAddressInfo.latitude = res[0].latitude;
+            that.currentAddressInfo.longitude = res[0].longitude;
+            that.currentAddressInfo.address = address || seaArea;
+            let params={
+              type:2, // 告诉地址列页为选择地址页面
+              fromUrl:'/pages/common/address_list',
+              cbUrl:'/pages/common/address_list',
+              latitude:  this.currentAddressInfo.latitude,
+              longitude: this.currentAddressInfo.longitude,
+              textName:  this.currentAddressInfo.address,
+              projectName: '',
+            };
+            that.$apply();
+            tip.loaded();
+            wx.navigateTo({
+              url: '/pages/common/map_location?params='+encodeURIComponent(JSON.stringify(params))
+            });
+          },
+          fail: (res) => {
+            tip.error('请重试');
+          }
+        });
+
+      },
+
+      // 选择地址
+      selectItem(item){
+        // 进入编辑地址界面
+        if(this.type === 1){
+          // //编辑
+          // console.log("进入编辑地址界面",this.type);
+          // let params={
+          //   type:1, // 告诉地址列页为选择地址页面
+          //   fromUrl:'/pages/common/address_list',
+          //   selectedId:item.id,  // 告诉选择地址页面 选中的哪一个
+          //   selectedItem:item,  // 告诉选择地址页面 选中的哪一个
+          //   cbUrl:'/pages/common/address_list',
+          //   latitude:  item.latitude,
+          //   longitude: item.longitude,
+          //   textName:  item.address,
+          //   projectName: item.projectName,
+          // };
+          // wx.navigateTo({
+          //   url: '/pages/common/map_location?params='+encodeURIComponent(JSON.stringify(params))
+          // });
+        }
+
+        // 选中地址后回调
+        if(this.type === 2){
+          let obj = item;
+          WxNotificationCenter.postNotificationName(NOTIFI_ORDER_SELECT_ADDRESS, obj);
+          wx.navigateBack();
+        }
+      }
+    };// end methods
+
+    //页面初始化
+    async init(){
+      let that = this;
+      await that.getAddressList();
+
+      this.$apply();
+    };
+
+    // 获取用车地址列表
+    async getAddressList(){
+      let that = this;
+      let selectCode = 0;
+      const result = await api.getAddressList({})
+      if(result && result.data && result.data.errCode == 0){
+        this.list = result.data.data;
+      }
+      this.pageShow = true;
+      tip.loaded();
+      this.$apply();
+    };
+
+
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+  }
+  .addressListWrap{
+    padding-bottom: 98rpx;
+    .list{
+      background-color: #ffffff;
+      .item{
+        margin-left: 20rpx;
+        padding: 20rpx 80rpx 20rpx 0;
+        border-top: 1px solid #E5E5E5;
+        position: relative;
+        .addressName{
+          font-size: 34rpx;
+          color: #333;
+          line-height: 48rpx;
+          overflow: hidden;
+          text-overflow:ellipsis;
+          white-space: nowrap;
+        }
+        .projectName{
+          font-size:28rpx;
+          color: #747474;
+          line-height: 40rpx;
+          margin-top: 10rpx;
+          overflow: hidden;
+          text-overflow:ellipsis;
+          white-space: nowrap;
+        }
+        .selected{
+          position: absolute;
+          right: 20rpx;
+          top: 50rpx;
+        }
+      }
+    }
+    .bottom_btn{
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      button{
+        -webkit-appearance: none;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        border-radius:0;
+        border-color: #FF8000;
+        background-color: #FF8000;
+        color: #FFF;
+        line-height: 98rpx;
+        text-align: center;
+        font-size: 36rpx;
+        &::after{
+          border: none;
+        }
+        &.isGray{
+          background-color: #b2b2b2;
+        }
+      }
+    }
+  }
+
+</style>

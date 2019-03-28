@@ -1,0 +1,342 @@
+<template>
+	<view class="authorizationWrap" hidden="{{isShow}}">
+		<image src="../../images/img_logo.png" class="author_logo"></image>
+		<view class="line"></view>
+		<view class="tips">您尚未微信授权</view>
+		<button open-type="getUserInfo" bindgetuserinfo="getWxUserInfo">授权登录</button>
+
+    <view class="envBox" wx:if="{{ api !='https://api.zuul.znlhzl.cn' }}">
+      <!--setApiMall-->
+      <radio-group bindchange="setApiMall">
+        <label class="checkbox" wx:for="{{items}}" wx:key="items" wx:for-item="item">
+          <radio  value="{{item.name}}" checked="{{item.checked}}"/>{{item.value}}
+        </label>
+      </radio-group>
+    </view>
+
+	</view>
+</template>
+<script>
+	import wepy from 'wepy';
+	import api from '../../api/api';
+	import tip from  '../../utils/tip'
+	import {
+		USER_SPECICAL_INFO,
+		USER_INFO,
+		SYSTEM_INFO,
+		ADDRESS_ID,
+		USER_CITY,
+		SEL_CLASS_CODE,
+		USER_PHONE
+	} from "../../utils/constant";
+
+	import {
+    NOTIFI_CITY_CHANGE
+  } from "../../utils/notif_const";
+
+  var mta = require('../../libs/mta_analysis.js')
+  var WxNotificationCenter = require("../../libs/WxNotificationCenter.js");
+
+
+	export default class authorization extends wepy.page {
+    config = {
+      navigationBarTitleText: '众能联合',
+      navigationBarBackgroundColor: '#ffffff',
+      navigationBarTextStyle: 'black',
+    };
+
+    data = {
+      fromUrl: '',
+      isShow: true, //
+      isFirstGetSen: false,
+      api:'',
+      items: [
+        {name: 'dev', value: 'dev', checked: api.apiMall === 'http://api.zuul.dev.znlhzl.org' ? 'true':false},
+        {name: 'test', value: 'test', checked: api.apiMall === 'http://api.zuul.test.znlhzl.org' ? 'true':false},
+        {name: 'autotest', value: 'autotest', checked: api.apiMall === 'http://api.zuul.autotest.znlhzl.org' ? 'true':false},
+        {name: 'pre', value: 'pre', checked: api.apiMall === 'https://api.zuul.pre.znlhzl.cn' ? 'true':false},
+        {name: 'uat', value: 'uat', checked: api.apiMall === 'https://api.zuul.uat.znlhzl.cn' ? 'true':false},
+        {name: 'cn', value: 'cn', checked: api.apiMall === 'https://api.zuul.znlhzl.cn' ? 'true':false},
+      ]
+    };
+
+    async getWxUserInfo(res) {
+      console.log('微信昵称',res)
+      let that = this;
+      this.isFirstGetSen = true;
+      tip.loading('登录中..');
+      if (res.detail.errMsg == 'getUserInfo:ok') {
+        //过滤表情符号
+        if(res && res.detail && res.detail.userInfo && res.detail.userInfo.nickName){
+          res.detail.userInfo.nickName =  res.detail.userInfo.nickName.replace(/\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDE4F]/g, "*");
+        }
+        await api.znSetStorageSync(USER_INFO, res);
+        await that.setLogin();
+        // console.log('登录中..登录中..');
+        // tip.loading('登录中...登录中...');
+      } else {
+        tip.loaded();
+      }
+    }
+
+    async setLogin() {
+      let that = this;
+      let isLogin = await that.$parent.reLogin().catch(error => {
+        console.log("relogin error", error);
+        tip.loaded();
+        wx.showModal({
+          content: '用户信息授权失败，请联系众能联合客服'
+        });
+      });
+      if (!isLogin) {
+        return false
+      }
+      let isAddress = await that.$parent.getAddress().catch(error => {
+        console.log("relogin error", error);
+        tip.loaded();
+        let cityInfo = api.znGetStorageSync(USER_CITY);
+        if (cityInfo) {
+          return isAddress = true
+        } else {
+          if (error.errMsg == "getLocation:fail auth deny") {
+            wx.showModal({
+              content: '定位授权失败,是否打开定位授权?',
+              success: res => {
+                if (res.confirm) {
+                  wx.openSetting();
+                }
+                if (res.cancel) {
+                  wx.navigateTo({
+                    url: '/pages/common/city_list?city=no'
+                  });
+                }
+              }
+            });
+          } else {
+            wx.showModal({
+              content: '您当前不在服务城市，请选择服务城市',
+              success: res => {
+                if (res.confirm) {
+                  wx.navigateTo({
+                    url: '/pages/common/city_list?city=no'
+                  });
+                }
+              }
+            });
+          }
+        }
+      });
+      if (!isAddress) {
+        return false
+      } else if (isAddress == "getCityInServiceFalse") {
+        let cityInfo = api.znGetStorageSync(USER_CITY);
+        if (cityInfo) {
+          isAddress = true;
+        } else {
+          wx.showModal({
+            content: '您当前不在服务城市，请选择服务城市',
+            showCancel: false,
+            success: res => {
+              if (res.confirm) {
+
+                wx.navigateTo({
+                  url: '/pages/common/city_list?city=no'
+                });
+              }
+            }
+          });
+          return false
+        }
+      }
+      if (isLogin && isAddress) {
+        if (that.fromUrl) {
+          that.fromUrl = decodeURIComponent(that.fromUrl);
+          let url = that.fromUrl.split("?")[0];
+          if (url == 'pages/main/home') {
+            wx.reLaunch({
+              url: '/' + that.fromUrl,
+            });
+          } else if ( url == 'pages/main/order') {
+            wx.reLaunch({
+              url: '/' + that.fromUrl,
+            });
+          } else if (url == 'pages/main/mine') {
+            wx.reLaunch({
+              url: '/' + that.fromUrl,
+            });
+          } else if (url == 'pages/main/bill') {
+            wx.reLaunch({
+              url: '/' + that.fromUrl,
+            });
+          } else {
+            wx.redirectTo({
+              url: '/' + that.fromUrl
+            });
+          }
+        } else {
+          wx.switchTab({
+            url: '/pages/main/home'
+          });
+        }
+        that.$apply();
+      } else if (isLogin && !isAddress) {
+        tip.loaded();
+        wx.showModal({
+          content: '您当前不在服务城市，请选择服务城市',
+          success: res => {
+            if (res.confirm) {
+              wx.navigateTo({
+                url: '/pages/common/city_list?city=no'
+              });
+            }
+          }
+        });
+      } else {
+        wx.showModal({
+          content: '授权失败，请重新授权',
+          success: res => {
+            if (res.confirm) {
+            }
+          }
+        });
+      }
+    }
+
+    onLoad(option) {
+      let that = this;
+      that.api = api.apiMall; //
+      var pages = getCurrentPages();    //获取加载的页面
+      var currentPage = pages[pages.length - 1];   //获取当前页面的对象
+      var url = currentPage.route;   //当前页面url
+      var options = option?JSON.stringify(option):'';
+      if(pages.length - 1>0){
+        that.$parent.setReferrerLogs( pages[pages.length - 2]);
+      }else{
+        that.$parent.setReferrerLogs('null');
+      }
+      that.$parent.setEnterPageLogs();
+      that.$parent.setLeavePageLogs();
+      that.$parent.setPageTitleLogs('众能联合授权界面');
+      that.$parent.setUrlLogs(url+'_option_'+options);
+
+      tip.loading();
+      WxNotificationCenter.addNotification(NOTIFI_CITY_CHANGE, that.cityChanged, that);
+      if (option.url) {
+        this.fromUrl = option.url;
+      }
+      this.init(option);
+    };
+
+    init(option) {
+      let that = this;
+      let channel = option._mta_ref_id || 'unknown';
+      console.log("q--->", option);
+      mta.Page.init();
+      mta.Event.stat("channel_mp_qr", {
+        "name": channel
+      });
+    }
+
+    onUnload() {
+      //移除通知
+      var that = this;
+      that.$parent.setLeavePageLogs();
+      that.$parent.sendLogs();
+
+      WxNotificationCenter.removeNotification(NOTIFI_CITY_CHANGE, that);
+    }
+
+    cityChanged(newCity) {
+      let that = this.observer;
+      if (newCity) {
+        var cityInfo = {};
+        cityInfo.city = newCity.regionName;
+        cityInfo.cityName = newCity.regionName;
+        cityInfo.cityCode = newCity.regionId;
+        api.znSetStorageSync(USER_CITY, cityInfo)
+      }
+    }
+
+    async onShow() {
+
+      let that = this;
+      let wxUserInfo = api.znGetStorageSync(USER_INFO);
+      let isLogin, isAddress;
+      let isAddressAuth = true;
+      if (wxUserInfo) {
+        await that.setLogin();
+        this.isShow = true;
+      }else{
+        this.isShow = false;
+      }
+
+      tip.loaded();
+    }
+
+    methods={
+      setApiMall(e){
+        switch(e.detail.value){
+          case 'dev':
+            api.apiMall = 'http://api.zuul.dev.znlhzl.org';
+            api.setApiMall('http://api.zuul.dev.znlhzl.org');
+            break;
+          case 'test':
+            api.apiMall = 'http://api.zuul.test.znlhzl.org';
+            api.setApiMall('http://api.zuul.test.znlhzl.org');
+            break;
+          case 'autotest':
+            api.apiMall = 'http://api.zuul.autotest.znlhzl.org';
+            api.setApiMall('http://api.zuul.autotest.znlhzl.org');
+            break;
+          case 'pre':
+            api.apiMall = 'https://api.zuul.pre.znlhzl.cn';
+            api.setApiMall('https://api.zuul.pre.znlhzl.cn');
+            break;
+          case 'cn':
+            api.apiMall = 'https://api.zuul.znlhzl.cn';
+            api.setApiMall('https://api.zuul.znlhzl.cn');
+            break;
+        }
+        this.$apply();
+      }
+    }
+
+
+
+	}
+</script>
+<style lang="less" >
+page {
+	background-color: #FFF;
+}
+.authorizationWrap{
+	padding-top: 30rpx;
+	background-color: #FFF;
+	text-align: center;
+	button{
+		margin-top: 100rpx;
+		width: 670rpx;
+		height: 94rpx;
+		background-color: #1AAD19;
+		color: #FFFFFF;
+		font-size: 36rpx;
+		line-height: 94rpx;
+	}
+	.line{
+		width: 670rpx;
+		height: 2rpx;
+		background-color: #EFEFF4;
+		margin: 20rpx auto 0;
+	}
+	.tips{
+		margin-top: 30rpx;
+		font-size: 34rpx;
+		color: #979797;
+	}
+}
+.author_logo{
+	width: 350rpx;
+	height: 301rpx;
+	margin: 0 auto;
+}
+</style>

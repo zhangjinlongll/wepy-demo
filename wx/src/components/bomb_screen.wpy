@@ -1,0 +1,630 @@
+<template>
+  <view wx:if="{{show}}">
+    <view wx:if="{{types=== '1' }}">
+
+      <view wx:if="{{list && list.length >1 }}" class="pop-alert-box conponList">
+        <image src="https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/wx_mini/coupon_list_pop.png" class="icon_alert" ></image>
+        <view class="list"  >
+          <view class="item" wx:for="{{list}}" wx:key="coupon" wx:for-item="item">
+            <image src="../images/img_gxnhd.png" class="bg"></image>
+            <view class="info">
+              <view class="price">
+                <text class="unit">¥</text><text class="num">{{ item.money }}</text>
+              </view>
+              <view class="tipsContent">
+                <view class="title">{{ item.couponName }}</view>
+                <view class="rule">{{ item.couponDesc }}</view>
+                <view class="date">有效期至：{{ item.expiryDate }}</view>
+              </view>
+            </view>
+          </view>
+
+        </view>
+        <!--<i class="iconfont icon-close" @tap.stop="close"></i>-->
+        <image class="icon-close-img" src="../images/img_tcgb.png"  @tap.stop="close"></image>
+      </view>
+
+      <view wx:else class="pop-alert-box newConponList">
+        <image src="https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/wx_mini/coupon_list_pop_one.png" class="icon_alert" ></image>
+        <view class="list"  >
+          <view class="item" wx:for="{{couponList}}" wx:key="coupon" wx:for-item="item">
+            <image src="../images/img_gxnhd_new.png" class="bg"></image>
+            <view class="info">
+              <view class="price">
+                <text class="unit">¥</text><text class="num">{{ item.money }}</text>
+              </view>
+              <view class="tipsContent">
+                <view class="title">{{ item.couponName }}</view>
+                <view class="rule">{{ item.couponDesc }}</view>
+                <view class="date">有效期至：{{ item.expiryDate }}</view>
+              </view>
+            </view>
+          </view>
+
+        </view>
+        <!--<i class="iconfont icon-close" @tap.stop="close"></i>-->
+        <image class="icon-close-img" src="../images/img_tcgb.png"  @tap.stop="close"></image>
+      </view>
+
+    </view>
+    <view wx:else>
+      <view class="pop-alert-box dialog">
+        <image src="https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/wx_mini/coupon_register.png" class="icon_alert_dialog"></image>
+        <form class="coupon-form" bindsubmit="formSubmit" report-submit="true">
+          <view class="section">
+            <input name="phone" type="number" value="{{phone}}" @input="phoneInput" placeholder="输入手机号码" maxlength="11"  />
+          </view>
+          <view class="section codeBox">
+            <input class="code" name="code" type="number" placeholder="验证码" @input='codeInput' value="{{code}}" />
+            <view class="{{!isCanSend?'btn send_code':'btn send_code active'}}">
+              <view wx:if="{{sendMsgDisabled}}">{{time+'秒后再次获取'}}</view>
+              <view @tap="sendCode" wx:else>{{ btnName }}</view>
+            </view>
+          </view>
+          <view class="btn_comfire">
+            <button class="button loginSubmit" formType="submit">登   录</button>
+          </view>
+
+        </form>
+        <i class="iconfont icon-close" @tap.stop="close"></i>
+      </view>
+    </view>
+    <view class="alert_mask" @tap.stop="close"></view>
+  </view>
+
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../api/api';
+  import tip from '../utils/tip'
+  import {
+    USER_SPECICAL_INFO,
+    USER_PHONE
+  } from '../utils/constant';
+
+  export default class bombScreen extends wepy.component {
+    data = {
+      phone: "",
+      code: "",
+      sendMsgDisabled: false,
+      time: 60,
+      isActive: true,
+      isCanSend: false,
+      fromUrl: '',//入口url
+      btnName: "获取",
+      list:[],
+      interval:null
+    };
+
+    props = {
+      show: {
+        default: true
+      },
+      types: {
+        default: '0'
+      },
+      couponList:{
+        default:[]
+      }
+    };
+
+    watch = {
+      phone() {
+        this.isCanSend = this.phone.length === 11;
+        if(this.isCanSend){
+
+        }else{
+          this.time = 60;
+          this.isCanSend = false;
+          this.sendMsgDisabled = false;
+          this.btnName = "获取";
+        }
+      },
+
+      async types(){
+        if(this.types == '1' && this.show){
+          let result = await api.getRegCouponList({});
+          if(result && result.data && result.data.errCode===0){
+            this.list = result.data.data.usable;
+            this.$apply();
+          }
+        }
+      }
+    };
+
+    methods = {
+      close: async function () {
+        switch (this.types) {
+          case '1':
+            // const result = await api.closeTips({
+            //   method: "POST",
+            //   query: {
+            //     tipStatus: "1"
+            //   }
+            // });
+            // if (result && result.data.errCode == 0) {
+            //   this.show = false;
+            //   let SessionInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+            //   SessionInfo.promInfo.showCoupon = "1";
+            //   api.znSetStorageSync(USER_SPECICAL_INFO,SessionInfo);
+            //   this.$emit("close");
+            // }
+            this.show = false;
+            this.$emit("close");
+            break;
+          default:
+            this.show = false;
+            this.$emit("close");
+            break;
+        }
+      },
+
+      codeInput(e) {
+        this.code = e.detail.value;
+      },
+
+      phoneInput(e) {
+        this.phone = e.detail.value;
+        if(this.interval){
+          clearInterval(this.interval);
+          this.interval = null;
+        }
+      },
+
+      sendCode(e) {
+        let reg = /^[1][0-9]{10}$/;
+        if (this.phone === "") {
+          tip.alert("输入手机号码");
+          return false;
+        }
+        if (!reg.test(this.phone)) {
+          tip.alert("输入正确的手机号码");
+          return false;
+        }
+        this.isCanSend = false;
+        this.sendVerifyCode();
+        let that = this;
+        that.sendMsgDisabled = true;
+        clearInterval(that.interval);
+        that.time = 60;
+        that.interval = setInterval(() => {
+          if ((that.time--) <= 0) {
+            that.time = 60;
+            this.isCanSend = true;
+            that.sendMsgDisabled = false;
+            that.btnName = "重新获取";
+            clearInterval(that.interval);
+            that.$apply();
+          }
+          that.$apply();
+        }, 1000);
+
+        console.log('倒计时id=====',that.interval)
+      },
+
+      formSubmit(e) {
+        let that = this;
+        let phone = e.detail.value.phone;
+        let code = e.detail.value.code;
+        if (phone === "") {
+          tip.alert("输入手机号码");
+          return false;
+        }
+        if (code === "") {
+          tip.alert("输入验证码");
+          return false;
+        }
+        that.registerUser(phone, code,e.detail.formId);
+
+      }
+    };
+
+    async sendVerifyCode() {
+      let that = this;
+      const json = await api.buildCode({
+        method: "POST",
+        query: {
+          phoneNum: this.phone,
+          kaptchaLen: 4
+        }
+      });
+      if (json && json.data.errCode === 0) {
+        tip.success("发送成功!");
+        that.$apply();
+      } else {
+        this.code = "";
+        this.time = 60;
+        this.isCanSend = true;
+        this.sendMsgDisabled = false;
+        that.$apply();
+        // tip.error(json.data.message)
+      }
+    }
+
+    async registerUser(phone, code,formId) {
+      let that = this;
+      tip.loading('正在提交..');
+      const json = await api.buildPhone({
+        method: "POST",
+        query: {
+          phoneNum: this.phone,
+          bindType: 1,
+          verifCode: this.code,
+          cpsFlag:"0"
+        }
+      });
+      if (json && json.data.errCode === 0) {
+
+        let result = await api.getUserInfo({});
+        if (result && result.data && result.data.errCode === 0) {
+          let userInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+          userInfo.userInfo.phoneNum = that.phone;
+          userInfo.userInfo.isActive = 1;
+          userInfo.userInfo.userId = result.data.data.userId;
+          userInfo.promInfo = {
+            showCoupon:"0"
+          };
+          api.znSetStorageSync(USER_SPECICAL_INFO, userInfo);
+          api.znSetStorageSync(USER_PHONE, userInfo.userInfo.phoneNum);
+
+          if(formId){
+            that.$parent.$parent.msgNotification(formId)
+          }
+
+          this.$emit("sure")
+        }
+        that.$apply();
+        tip.success('手机绑定成功')
+      } else if (json.data.errCode === 1011) {
+        this.code = "";
+        this.time = 60;
+        this.isCanSend = true;
+        this.sendMsgDisabled = false;
+        that.$apply();
+      }
+
+
+    }
+
+    events ={
+      init(){
+        console.log(2);
+      }
+    }
+  }
+
+</script>
+<style lang="less">
+.pop-alert-box {
+  position: fixed;
+  width: 610rpx;
+  height: 810rpx;
+  margin-left: -305rpx;
+  margin-top: -405rpx;
+  top: 50%;
+  left: 50%;
+  z-index: 2001;
+  text-align: center;
+  &.dialog {
+    .coupon-form{
+      position: absolute;
+      z-index: 2002;
+      bottom: 40rpx;
+      left: 0;
+
+      .section {
+        display: flex;
+        align-items: center;
+        padding: 0 45rpx;
+        &.loginImgBox {
+          display: block;
+          border-bottom: 0;
+          text-align: center;
+        }
+        &.codeBox {
+          background: none;
+          margin-top: 20rpx;
+        }
+        input {
+          flex: 1;
+          background: #fff;
+          height: 80rpx;
+          text-align:left;
+          padding: 0 20rpx;
+        }
+
+        .btn {
+          width: 200rpx;
+          height: 80rpx;
+          line-height: 80rpx;
+          border-radius: 0;
+          color: #ffffff;
+          background: #bfbfbf;
+          text-align: center;
+          &.active {
+            background: #FF8000;
+          }
+          &.countdown {
+            color: #333;
+            border-color: #ccc;
+          }
+        }
+        .send_code {
+          margin-left: 10rpx;
+          view{
+            font-size: 26rpx;
+            width: 200rpx;
+            height: 80rpx;
+            line-height: 80rpx;
+            border-radius: 0;
+            color: #ffffff;
+            background: #bfbfbf;
+            text-align: center;
+          }
+          &.active{
+            view{
+              font-size: 30rpx;
+              color: #FFF;
+              background-color: #FF8000;
+            }
+          }
+        }
+      }
+
+      .btn_comfire {
+        margin: 0 auto;
+        width: 300rpx;
+        margin-top: 50rpx;
+        button{
+          opacity: 0;
+        }
+      }
+
+      .code {
+
+      }
+
+    }
+  }
+
+  &.newConponList{
+    width: 633rpx;
+    height: 774rpx;
+    position: fixed;
+    margin-left: -316.5rpx;
+    margin-top: -385rpx;
+    top: 45%;
+    .icon_alert{
+      width: 633rpx;
+      height: 774rpx;
+    }
+    .list{
+      position: absolute;
+      bottom: 157rpx;
+      width: 493rpx;
+      height: 156rpx;
+      left: 80rpx;
+    }
+    .item{
+      width: 493rpx;
+      height: 156rpx;
+      margin: 20rpx auto 0;
+      position: relative;
+      &:first-child{
+        margin-top: 0;
+      }
+      .bg{
+        width: 493rpx;
+        height: 156rpx;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 1;
+      }
+      .info{
+        position: relative;
+        z-index: 2;
+        display: -webkit-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+        display: flex;
+
+        -webkit-flex-direction: row;
+        -ms-flex-direction: row;
+        flex-direction: row;
+
+        -webkit-box-align: center;
+        -webkit-align-items: center;
+        -ms-flex-align: center;
+        align-items: center;
+        text-align: left;
+        height: 100%;
+      }
+      .price{
+        width: 145rpx;
+        text-align: center;
+        font-weight: 700;
+        color: #FA2632;
+        .unit{
+          font-size: 24rpx;
+        }
+        .num{
+          font-size: 54rpx;
+        }
+      }
+      .tipsContent{
+        padding: 0 25rpx;
+        .title{
+          font-size: 24rpx;
+          color: #1D1D1D;
+          margin-top: 0;
+        }
+        .rule{
+          font-size: 18rpx;
+          color: #9B9999;
+          margin-top: 0rpx;
+        }
+        .date{
+          font-size: 18rpx;
+          color: #C7C7CC;
+          margin-top: 16rpx;
+        }
+      }
+
+    }
+
+    .tips{
+      text-align: center;
+      font-size: 20rpx;
+      color: #FFFFFF;
+      position: absolute;
+      left: 0;
+      width: 100%;
+      bottom: 35rpx;
+    }
+  }
+
+  &.conponList{
+    top: 45%;
+    .list{
+      position: absolute;
+      bottom: 87rpx;
+      width: 560rpx;
+      height: 430rpx;
+      left: 25rpx;
+    }
+    .item{
+      width: 560rpx;
+      height: 130rpx;
+      margin: 20rpx auto 0;
+      position: relative;
+      &:first-child{
+        margin-top: 0;
+      }
+      .bg{
+        width: 560rpx;
+        height: 130rpx;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 1;
+      }
+      .info{
+        position: relative;
+        z-index: 2;
+        display: -webkit-box;
+        display: -webkit-flex;
+        display: -ms-flexbox;
+        display: flex;
+
+        -webkit-flex-direction: row;
+        -ms-flex-direction: row;
+        flex-direction: row;
+
+        -webkit-box-align: center;
+        -webkit-align-items: center;
+        -ms-flex-align: center;
+        align-items: center;
+        text-align: left;
+        height: 100%;
+      }
+      .price{
+        width: 145rpx;
+        text-align: center;
+        font-weight: 700;
+        color: #FF8000;
+        .unit{
+          font-size: 24rpx;
+        }
+        .num{
+          font-size: 54rpx;
+        }
+      }
+      .tipsContent{
+        padding: 0 25rpx;
+        .title{
+          font-size: 24rpx;
+          color: #1D1D1D;
+          margin-top: 0;
+        }
+        .rule{
+          font-size: 18rpx;
+          color: #9B9999;
+          margin-top: 5rpx;
+        }
+        .date{
+          font-size: 18rpx;
+          color: #C7C7CC;
+          margin-top: 16rpx;
+        }
+      }
+
+    }
+
+    .tips{
+      text-align: center;
+      font-size: 20rpx;
+      color: #FFFFFF;
+      position: absolute;
+      left: 0;
+      width: 100%;
+      bottom: 35rpx;
+    }
+  }
+}
+
+.icon_alert {
+  width: 610rpx;
+  height: 810rpx;
+  margin: 0 auto;
+}
+
+.icon_alert_dialog {
+  width: 610rpx;
+  height: 810rpx;
+  margin: 0 auto;
+}
+
+.icon-close {
+  display: inline-block;
+  font-size: 50rpx;
+  color: #999;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2002;
+}
+
+.icon-close-img {
+  display: inline-block;
+  font-size: 50rpx;
+  color: #999;
+  position: absolute;
+  bottom: -100rpx;
+  z-index: 2002;
+  width: 62rpx;
+  height: 62rpx;
+  left: 50%;
+  margin-left: -31rpx;
+}
+
+.alert_mask {
+  background-color: rgba(0, 0, 0, .6);
+  position: fixed;
+  z-index: 2000;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  top: 0;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+</style>

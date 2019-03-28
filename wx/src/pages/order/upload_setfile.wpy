@@ -1,0 +1,564 @@
+
+<template>
+  <view class="container">
+    <scroll-view class="scrollView">
+      <view class="firstItem">
+        <view class="inputItem">
+          <view class="leftText">已支付金额</view>
+          <input class="leftInput" placeholder="请输入" placeholder-class="placehoderClass" bindinput ="payAmount" focus = '{{showKeyborde}}' type="digit" value="{{submitParmeters.paymentAmount}}"/>
+          <image class="cancelImg" src="../../images/icon_gb2.png" bindtap="cancelClik"></image>
+        </view>
+
+        <view class="lineView"></view>
+
+        <view class="leftText">支付截图</view>
+
+        <image_content :imageList.sync="imageUrl" @watchImageList.user="watchImageList"></image_content>
+        <view class="payTip">{{source==2?'请前往支付成功页-电子回单详情并截图':'请前往支付宝右下角我的-账单-众能联合账单详情并截图'}}</view>
+        <view class="bottom"></view>
+      </view>
+      <view class="thirdItem">
+        <view class="inputItem2">
+          <view class="leftLineView"></view>
+          <view class="leftText2" style="width:170rpx ">{{source==3?'收款账号':'收款二维码'}}</view>
+        </view>
+
+        <view class="lineView-more"></view>
+        <block wx:if="{{source==2}}">
+          <view class="moneyAccount">
+            <view class="accountItem">名称：众能联合数字技术有限公司</view>
+            <view class="accountItem">开户银行：中国工商银行南京郁金香路支行</view>
+            <view class="accountItem">银行账号：430 1013 6091 0033 7233</view>
+          </view>
+        </block>
+        <block wx:elif="{{source==1}}">
+          <view class="payCode">
+            <image src="https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/mini_app_photo/payment/img_zfb.png"></image>
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+
+    <view class="submit  {{ isIphoneX?'iphoneXClass':'' }}" bindtap="submitSetfile">提  交</view>
+  </view>
+
+</template>
+
+<script>
+  import wepy from 'wepy';
+  import images_content from '../../components/images_content';
+  import select_payType from '../../components/select_payType';
+  import tip from '../../utils/tip';
+  import api from '../../api/api';
+  var uploadUrl = api.apiMall+'/api-oss/upload/uploadImg';
+  import {
+    USER_INFO,USER_SPECICAL_INFO
+  } from '../../utils/constant';
+
+  export default class Index extends wepy.page {
+    config = {
+      navigationBarTitleText: '上传支付凭证',
+    }
+
+    components = {
+      image_content:images_content,
+      select_payType:select_payType
+    }
+
+    data = {
+      isIphoneX:false,
+      imageUrl:[],
+      showKeyborde:false,
+      uploadImages:[],
+      fileIdArr:[],
+      hidden:false,//控制支付方式的选择
+      inputHidden:false,
+      payTypeName:'请选择',
+      submitParmeters:{
+        orderCode:'', // 订单编号
+        paymentAmount:'', // 付款金额
+        paymentType:'', //　支付类型, 0 微信支付, 1 支付宝支付, 2 银行卡转账
+        remarks:'',  // 备注
+        userId:'C001', // 会员编号
+        fileid:'' ,// 附件编号
+        couponVoList: [  // 优惠券列表
+          {
+            couponId: "", // 券码
+            deduction: 0, // 抵扣金额
+            money: 0 // 券金额
+          }
+        ]
+      },
+      canEdit:true,
+      source:1,//2.银行卡上传支付凭证，1.支付宝支付上传的凭证
+
+    }
+
+
+    onLoad(options) {
+      let that = this;
+      that.isIphoneX = that.$parent.globalData.isIphoneX;
+      console.log('smnssjnsnssnns', options.orderCode);
+      that.orderCode = options.orderCode;
+      that.submitParmeters.orderCode = options.orderCode;
+      that.source = options.source;
+      if (options.payMoney && options.payMoney.length>0){
+        that.canEdit = false;
+        that.submitParmeters.paymentAmount = options.payMoney;
+      }
+      if(options.couponInfo){
+        let obj = JSON.parse(decodeURIComponent(options.couponInfo));
+        if(obj.money){
+          that.submitParmeters.couponVoList[0] = obj;
+        }else {
+          that.submitParmeters.couponVoList = [];
+        }
+
+      }
+      console.log("submitParmeters",that.submitParmeters)
+      that.$apply();
+    }
+
+    onShow() {
+      let that = this;
+    }
+
+    computed = {
+
+    }
+    methods = {
+      cancelClik:function () {
+        this.submitParmeters.paymentAmount = '';
+        this.showKeyborde = true
+        this.$apply();
+      },
+
+      slectPayType:function () {
+        var that = this;
+        console.log(that.hidden);
+        that.hidden = true;
+        that.inputHidden = true;
+        that.$apply();
+       // this.setData({
+       //     hidden:true
+       //   });
+      },
+      closePayType:function () {
+        console.log(1111111);
+        var that = this;
+        that.hidden = false;
+        that.inputHidden = false;
+        that.$apply();
+      },
+
+      submitSetfile:function () {
+        var that = this;
+
+
+        that.submitSetFile()
+      },
+
+      surePayType:function (e) {
+        var selectItem = e.source.$data.selectItem;
+        var that = this;
+        that.payTypeName = selectItem.item;
+        that.submitParmeters.paymentType = selectItem.index;
+        var that = this;
+        that.hidden = false;
+        that.inputHidden = false;
+        that.$apply();
+      },
+
+      showImage:function (e) {
+        console.log(e);
+        var imageArr = ['https://znlhzl.oss-cn-hangzhou.aliyuncs.com/mini_app_photo/example/lALPBbCc1cDmcMTNAyDNAXc_375_800.png_620x10000q90g.jpg','https://znlhzl.oss-cn-hangzhou.aliyuncs.com/mini_app_photo/example/lALPBbCc1cDnNfPNAiLNAyA_800_546.png_620x10000q90g.jpg'];
+        console.log(imageArr[e]);
+        wx.previewImage({
+          current: imageArr[e], // 当前显示图片的http链接
+          urls: imageArr,
+        })
+      },
+
+      watchImageList:function (e) {
+        var that = this;
+         console.log(e);
+        that.uploadImages = e.imageList;
+      },
+
+      payAmount:function (e) {
+        this.submitParmeters.paymentAmount = e.detail.value;
+      },
+
+      remarksContent:function (e) {
+        this.submitParmeters.remarks = e.detail.value;
+      }
+    }
+    events = {
+
+    }
+    async submitSetFile(){
+      if (this.submitParmeters.paymentAmount.length == 0){
+        tip.error('请输入付款金额')
+        return;
+      }
+      if(this.uploadImages.length == 1 || this.uploadImages.length == 0) {
+        tip.error('请上传附件');
+        return;
+      }
+      this.submitParmeters.paymentType = this.source;
+      var images = this.uploadImages;
+      this.getFileId(images);
+
+    }
+    async getFileId(images) {
+       var json = await api.getFileId ({
+         methods:'GET'
+       });
+       var uploadarr = [];
+       if(json){
+         for (var i = 0;i < this.uploadImages.length; i++){
+           if(i != this.uploadImages.length -1){
+             uploadarr.push(this.uploadImages[i]);
+           }
+         }
+         this.submitParmeters.fileid = json.data.data;
+         this.uploadimg({  //上传图片
+           url:uploadUrl,
+           path:uploadarr,
+         });
+       }
+    }
+    // //多张图片上传
+    async uploadimg(data){
+      tip.loading();
+      var that=this,
+        i=data.i?data.i:0,//当前上传的哪张图片
+        success=data.success?data.success:0,//上传成功的个数
+        fail=data.fail?data.fail:0;//上传失败的个数
+        wx.uploadFile({
+          url: data.url,
+          filePath: data.path[i],
+          name:'fileList',//这里根据自己的实际情况改
+          header: {
+            // 'content-type':'multipart/form-data'
+          },
+          formData:{
+            fileId:this.submitParmeters.fileid
+          },//这里是上传图片时一起上传的数据
+
+          success: (resp) => {
+            success++;//图片上传成功，图片上传成功的变量+1
+            var responsJson = JSON.parse(resp.data);
+            this.fileIdArr.push(responsJson.data);
+          },
+          fail: (res) => {
+            fail++;//图片上传失败，图片上传失败的变量+1
+          },
+          complete: () => {
+            i++;//这个图片执行完上传后，开始上传下一张
+            if(i==data.path.length){  //当图片传完时，停止调用
+              tip.loaded();
+              this.podImageFinal();
+            }else{//若图片还没有传完，则继续调用函数
+              data.i=i;
+              data.success=success;
+              data.fail=fail;
+              that.uploadimg(data);
+            }
+
+          }
+        });
+      }
+
+     async podImageFinal(){
+        var json = await api.uploadFinal ({
+          method:'POST',
+          query:{
+            ids:this.fileIdArr,
+            fileId:this.submitParmeters.fileid
+          }
+        });
+        console.log(json);
+        if(json){
+          this.uploadOrder();
+        }
+      }
+
+    //上传支付凭证上传凭证
+    async uploadOrder(){
+      console.log(this.submitParmeters);
+      var json = await api.uploadPayVoucher({
+        method:'POST',
+        query:this.submitParmeters,
+      })
+
+      if(json&&json.data.data){
+
+
+        wx.showModal({
+          title: '上传成功',
+          content: '工作人员将在三个工作日内完成确认，如有疑问请联系客服',
+          showCancel:false,
+          confirmColor:'#FF8000',
+          success: function(res) {
+            if (res.confirm) {
+             /* wx.reportAnalytics('coupon_use', {
+                order_code:this.orderCode,
+                amount: this.couponVoList[0].deduction,
+                coupon_id: this.couponVoList[0].couponId,
+                order_amount: this.submitParmeters.paymentAmount,
+              });*/
+
+
+              wx.navigateBack(
+                {
+                  delta:2,
+                }
+
+              );
+            }
+          }
+        })
+
+      }
+    }
+  }
+
+
+
+</script>
+
+<style lang="less">
+  .container {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  .scrollView {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /*margin-bottom: 96rpx;*/
+    background-color: #efeff4;
+  }
+  .firstItem {
+    /*margin-top:10rpx;*/
+    background-color: white;
+    flex-direction: column;
+    width: 100%;
+
+
+  }
+  .placehoderClass{
+    color: #989b9e;
+    z-index: 0;
+  }
+  .inputItem {
+    height: 88rpx ;
+    width:100%;
+    flex-direction: row;
+    display: flex;
+  }
+
+  .payTip{
+    margin-left: 20rpx;
+    margin-bottom: 20rpx;
+    color: #989b9e;
+    font-size: 24rpx;
+  }
+
+  .leftText {
+    line-height: 88rpx;
+    font-size: 34rpx;
+    width:200rpx;
+    font-size: 34rpx;
+    margin-left: 20rpx;
+    color: #000000;
+
+  }
+
+  .inputItem2 {
+    margin-top: 0rpx;
+    margin-left: 0rpx;
+    height:88rpx ;
+    width:100%;
+    display: flex;
+  }
+
+
+  .leftText2 {
+    font-size: 34rpx;
+    margin-left: 20rpx;
+    color: #000000;
+    line-height: 88rpx;
+  }
+
+
+  .leftInput {
+    font-size: 34rpx;
+    width: 60vw;
+    margin-right: 20rpx;
+    margin-top: 24rpx;
+    color: #000;
+    &.placeholder{
+       color: #989b9e;
+     }
+  }
+
+  .lineView {
+    background-color: #e5e5e5;
+    margin-left: 30rpx;
+    height:1px;
+    margin-right: 0;
+  }
+
+  .imageLeft{
+    margin-left: 30rpx;
+    width: 156rpx;
+    height:156rpx;
+
+  }
+
+  .secondItem {
+    margin-top:20rpx;
+    background-color: white;
+    width: 100%;
+    height:250rpx;
+    display: flex;
+  }
+
+  .textareaStyle {
+    margin-top: 20rpx;
+    margin-left: 20rpx;
+    width:710rpx;
+    height: 200rpx;
+    position: relative;
+    z-index: 1;
+    background: #FFF;
+    color: #000000;
+  }
+
+  .thirdItem {
+    margin-top:20rpx;
+    background-color: white;
+    width: 100%;
+    //height:230rpx;
+  }
+
+  .leftLineView {
+    margin-left: 0rpx;
+    width: 6rpx;
+    height: 45rpx;
+    background-color:#FE7A00;
+    align-self: center;
+  }
+
+  .pay_codeView {
+    width: 100%;
+    background-color: #ffffff;
+    flex-direction: row;
+    display: flex;
+    margin-top: 15rpx;
+  }
+  .payImage {
+    margin-top: 10rpx;
+    width: 155rpx;
+    height: 155rpx;
+    background-color: #ff6a3c;
+    align-self: center;
+    margin-left: 20rpx;
+  }
+
+  .submit {
+    left: 0;
+    right: 0;
+    background-color:#FF8000;
+    bottom: 0;
+    line-height: 96rpx;
+    text-align: center;
+    position: fixed;
+    color: #ffffff;
+    font-size: 36rpx;
+  }
+  .lineView-more {
+    margin-top: 10 rpx;
+    height: 1px;
+    background-color:#e5e5e5;
+    width: 100vw;
+  }
+
+  .arrow {
+    float: right;
+    width: 26rpx;
+    height: 26rpx;
+    margin-top: 31rpx;
+    margin-right: 20rpx;
+  }
+
+  .moneyAccount{
+    margin-left: 0rpx;
+    margin-right: 0rpx;
+    width: 100%;
+    height: 165rpx;
+    flex-direction: column;
+    margin-bottom: 20rpx;
+  }
+
+  .accountItem{
+    margin-left: 20rpx;
+    margin-top: 15rpx;
+    line-height: 40rpx;
+    font-size: 30rpx;
+    color: #000000;
+  }
+
+ .payCode{
+   margin-left: 0rpx;
+   margin-top: 20rpx;
+   width: 100%;
+   height: 250rpx;
+   margin-bottom: 20rpx;
+   image{
+     margin-left: 20rpx;
+     margin-top: 0rpx;
+     width: 240rpx;
+     height: 240rpx;
+     background-color: #FEBE0A;
+   }
+ }
+
+  .rightText {
+    float: right;
+    margin-right: 20rpx;
+    line-height: 88rpx;;
+    color: #343434;
+    font-size: 36rpx;
+  }
+
+  .rightText2 {
+    float: right;
+    margin-top: -5rpx;
+    margin-right: 10rpx;
+    line-height: 88rpx;;
+    color: #343434;
+    font-size: 36rpx;
+  }
+
+  .bottom{
+    margin-left: 0rpx;
+    margin-right: 0rpx;
+    height: 1rpx;
+    background-color: #ffffff;
+    width: 100%;
+  }
+
+  .cancelImg{
+    float: right;
+    margin-right: 20rpx;
+    height: 32rpx;
+    width: 32rpx;
+    margin-top: 28rpx;
+  }
+
+</style>

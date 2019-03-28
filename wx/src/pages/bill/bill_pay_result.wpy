@@ -1,0 +1,202 @@
+<template>
+  <view class="container" wx:if="{{isCheckOrderPay}}">
+    <image class="payResult_image" src="../../images/icon_cg.png"> </image>
+    <text  class="payResult">成功支付 ¥{{payAmount}}</text>
+    <view class="redCoupon" wx:if="{{ expEeduction && expEeduction > 0 }}">(已优惠¥{{expEeduction}})</view>
+    <!--<block wx:if="{{balanceAmount >0}}">-->
+      <!--<view class="pay_continue" bindtap="payContiue">继续支付剩余<text>¥{{balanceAmount}}</text></view>-->
+    <!--</block>-->
+    <!--<block wx:elif="{{balanceAmount==0}}">-->
+      <!--<text class="pay_over">您的账单已付清,谢谢</text>-->
+    <!--</block>-->
+    <view class="pay_back" @tap ="backHome">返回</view>
+  </view>
+</template>
+
+<script>
+  import wepy from "wepy";
+  import tip from "../../utils/tip";
+  import api from "../../api/api";
+  import { USER_SPECICAL_INFO } from "../../utils/constant";
+  export default class bill_pay_result extends wepy.page{
+    config = {
+      navigationBarTitleText: '支付成功',
+    }
+
+    components = {
+
+    }
+
+    data={
+      isCheckOrderPay:false,
+      requestCount:0,
+      showContinue:true,
+      payAmount:0,
+      balanceAmount:0,
+      expEeduction:0 // 已优惠金额
+    }
+
+    methods = {
+      backHome:function () {
+        api.znSetStorageSync("payBack","1");
+        wx.navigateBack({delta: 2});
+      },
+
+      //继续支付
+      payContiue:function () {
+        wx.navigateBack({changed: true });
+      }
+    }
+
+    //检查该定单的支付状态
+    async checkOrderStatus(e){
+      const json = await api.checkPayOrderStatus({
+        methods:'GET',
+        query:{
+          "outTradeNo":e,
+        },
+      });
+      if(json&&json.data.errCode == 0){
+        tip.loaded();
+        console.log(json.data.data["payStatus"]+'*********');
+        if(json.data.data["payStatus"] == 1){
+          this.isCheckOrderPay = true;
+          this.payAmount = json.data.data["paymentFee"];
+          // this.getBillDetailMsg(json.data.data["orderCode"]);
+        }else {
+          this.requestCount ++;
+          if (this.requestCount == 3){
+            tip.error(json.data.message);
+            //返回到上个页面
+            wx.navigateBack({changed: true });
+          }else { //重复查询
+            this.checkOrderStatus(e);
+          }
+        }
+      }else {
+        tip.loaded();
+        this.requestCount ++;
+        if (this.requestCount == 3){
+          tip.error(json.data.message);
+          //返回到上一个页面
+          wx.navigateBack({changed: true });
+        }else { //重复查询
+          this.checkOrderStatus(e);
+        }
+      }
+
+      this.$apply();
+    }
+
+    // async getBillDetailMsg(e) {
+    //   tip.showLoading;
+    //   const json = await  api.getOrderBillMessage({
+    //     method: "GET",
+    //     query: {
+    //       "orderCode": e,
+    //     },
+    //   });
+    //     tip.hideLoading;
+    //   if (json && json.data.errCode == 0) {
+    //     this.balanceAmount = json.data.data["pendingPayment"] ? json.data.data["pendingPayment"] : 0;
+    //     this.$apply();
+    //   }
+    // }
+
+   //延迟1秒钟执行方法
+    onLoad(options){
+      if( options.outTradeNo ==="no"){
+        this.isCheckOrderPay = true;
+      }else{
+        tip.loading('正在查询...');
+        setTimeout(() => {
+          this.checkOrderStatus(options.outTradeNo)
+        },2000);
+      }
+
+      if(options.expEeduction){
+        this.expEeduction = options.expEeduction
+      }
+      this.$apply();
+    }
+
+
+    onUnload(){
+
+    }
+
+  }
+</script>
+
+<style lang="less">
+  page{
+    height:100%;
+  }
+  .container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f5f5f5;
+  }
+
+  .payResult_image{
+    width: 186rpx;
+    height: 186rpx;
+    margin-top: 100rpx;
+  }
+
+  .payResult{
+    width: 80vw;
+    text-align: center;
+    margin-top: 60rpx;
+    line-height: 40rpx;
+    font-size: 40rpx;
+    color: #000000;
+  }
+
+  .redCoupon{
+    text-align: center;
+    line-height: 40rpx;
+    font-size: 26rpx;
+    color: #FE3F3B;
+  }
+
+  .pay_continue{
+    font-size: 36rpx;
+    line-height:94rpx;
+    width: 670rpx;
+    color: white;
+    text-align: center;
+    margin-top:129rpx;
+    background-color: #FF8000;
+    border-radius: 10rpx;
+
+    text{
+      margin-left: 15rpx;
+    }
+
+  }
+
+  .pay_over{
+    margin-top:129rpx;
+    font-size: 36rpx;
+    line-height: 94rpx;
+    text-align: center;
+    width: 670rpx;
+    color: #747474;
+  }
+
+  .pay_back{
+    font-size: 36rpx;
+    width: 670rpx;
+    line-height:94rpx;
+    color: #FF8000;
+    text-align: center;
+    margin-top:30rpx;
+    background-color: #ffffff;
+    border-radius: 10rpx;
+  }
+
+</style>

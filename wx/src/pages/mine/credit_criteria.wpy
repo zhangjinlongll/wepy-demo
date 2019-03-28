@@ -1,0 +1,122 @@
+<template>
+  <view class="creditWrap">
+    <!--<view style="height: 30rpx"></view>-->
+    <view class="label">1、信用评分介绍</view>
+    <view class="value">众能信用评分是众能联合数字技术有限公司根据用户的信用历史、行为偏好、履约能力、身份特质等信息，综合评估得出的分值，能有效反映出用户在行业内的信用情况。</view>
+
+    <view class="label">2、评分等级对照表</view>
+    <view class="value">
+      <view>用户信用评级达到对应升级门槛，即可以升级</view>
+      <view class="table">
+        <view class="itemBox">
+          <view class="item">信用评级</view><view class="item">信用说明</view>
+        </view>
+        <view class="itemBox">
+          <view class="item">A</view><view class="item">极好</view>
+        </view>
+        <view class="itemBox">
+          <view class="item">B</view><view class="item">优秀</view>
+        </view>
+        <view class="itemBox">
+          <view class="item">C</view><view class="item">良好</view>
+        </view>
+        <view class="itemBox">
+          <view class="item">D</view><view class="item">中等</view>
+        </view>
+        <view class="itemBox">
+          <view class="item">E</view><view class="item">较差</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="label">3、信用评分规则</view>
+    <view class="value">
+      <text>黑名单规则说明
+        1、利用虚假材料、以欺骗手段取得租赁设备；
+        2、发生转包、出借资质，受到行政处罚的；
+        3、发生重大及以上工程质量安全事故，或1年内累计发生2次及以上较大质量安全事
+        故，或发生性质恶劣、危害性严重、社会影响大的较大质量安全事故，受到行政处罚的；
+        4、经法院判决或仲裁机构裁决，认定为拖欠租金款,且拒不履行生效法律文书确定的义
+        务的。
+        5、应收账款M3的逾期客户。</text>
+    </view>
+
+  </view>
+
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '../../api/api';
+import tip from '../../utils/tip';
+
+export default class credit_criteria extends wepy.page {
+  config = {
+    navigationBarTitleText: '信用准则',
+  };
+
+  data = {
+    info:''
+  };
+
+  async onLoad() {
+
+  }
+
+  // 页面初始化
+  async init(){
+
+  };
+
+}
+
+</script>
+<style lang="less">
+  page{
+    background-color: #ffffff;
+  }
+.creditWrap{
+  padding: 0 20rpx;
+  min-height: 1080rpx;
+  padding-bottom: 50rpx;
+  view{
+    line-height: 45rpx;
+    color: #333333;
+    font-size: 30rpx;
+  }
+  .label{
+    color: #FF8000;
+    font-size: 30rpx;
+    margin-top: 30rpx;
+  }
+  .value{
+    color: #333333;
+    font-size: 30rpx;
+    margin-top: 20rpx;
+  }
+
+  .table{
+    text-align: center;
+    width: 100%;
+    /*border: 1rpx solid #cccccc;*/
+    .itemBox{
+      display: flex;
+      flex-direction: row;
+      &:last-child{
+        border-bottom: 1rpx solid #cccccc;
+      }
+      .item{
+        width: 50%;
+        padding: 10rpx 0;
+        text-align: center;
+        border: 1rpx solid #cccccc;
+        border-bottom: 0;
+        font-size: 24rpx;
+        &:first-child{
+          border-right: 0;
+        }
+      }
+    }
+  }
+}
+</style>

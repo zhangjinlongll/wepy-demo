@@ -1,0 +1,562 @@
+<template>
+  <view class="repairOrderWrap">
+    <form bindsubmit="formSubmit" report-submit="true">
+      <input type="text" style="display: none" value="{{ projectName }}" name="projectName"/>
+      <input type="text" style="display: none" value="{{ devTroubleTypes.length>0?'devTroubleTypes':'' }}" name="devTroubleTypes"/>
+      <input type="text" style="display: none" value="{{ filePath.length>0?'filePath':'' }}" name="filePath"/>
+
+      <view class="container">
+      <view class="repairAddress formItem" @tap="repairAddress">
+        <view class="section_title">报修地址</view>
+        <view class="addressText">{{ projectName }}</view>
+        <view wx-if="{{ !ishidden }}"><image class="arrow" src="../../images/arrow_left.png"></image></view>
+      </view>
+      <view class="repairType formItem">
+        <view class="section_title">设备故障类型</view>
+        <!--设备故障类型多选-->
+        <checkbox-group class="repairTypeGroup" bindchange="repairTypeChange">
+          <!--后端返回故障类型字典表-->
+          <view class="{{repairTypes[index].checked ? hasSelect : noSelect}}" wx:for="{{repairTypes}}" wx:key="{{repairTypes[index]}}">
+            <label>
+              <!--多选框默认不显示-->
+              <checkbox hidden value="{{item.value}}" checked="{{item.checked}}"></checkbox>
+              <text class="repairTypeItem_text">{{item.label}}</text>
+            </label>
+          </view>
+        </checkbox-group>
+
+      </view>
+      <view class="remarksBox formItem">
+        <textarea placeholder="请简要描述设备故障情况" placeholder-class="placeholder" value="{{ troubleInfo }}" maxlength="200" auto-height @input="inputRemarks" name="remarks" />
+      </view>
+      <view class="uploadImages formItem">
+        <view class="section_title">上传图片</view>
+        <view class="imageList">
+          <view class="uploadImage" wx:for="{{filePath}}" wx:key="*this">
+            <view class="imageWrap">
+              <!-- 图片缩略图  -->
+              <image class="image" src="{{item}}" mode="aspectFill" data-idx="{{index}}" @tap="handleImagePreview"></image>
+              <!-- 移除图片的按钮  -->
+              <image class="imageRemover icon icon-delete" data-idx="{{index}}" src="../../images/imageDelet.png" @tap="removeImage"></image>
+            </view>
+          </view>
+          <view @tap="chooseImage" class="uploadImage" wx:if="{{filePath.length < 9}}">
+            <image class="image" src="../../images/fujian_holeder.png" mode="aspectFill"></image>
+          </view>
+        </view>
+      </view>
+      <view class="telPhone formItem">
+        <view class="section_title">联系电话</view>
+        <view class="numberBox">
+          <input type="number" placeholder="请输入联系电话" name="contactTel" focus="{{ isEditPhone }}"  value="{{ contactTel }}" placeholder-style="font-size:28rpx" cursor-spacing="70" maxlength="11" @input="inputContactTel" @blur="blurContactTel" @focus="focusContactTel"/>
+          <view class="editPhone" @tap="editContactTel" wx:if="{{ !isEditPhone }}">点击修改</view>
+        </view>
+      </view>
+      <view class="submitBtnBox">
+        <button class="btn btn_yellow" formType="submit">提 交</button>
+      </view>
+    </view>
+    </form>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import utils from '../../utils/util';
+  import {NOTIFI_REPAIR_SELECT_ADDRESS} from  '../../utils/notif_const';
+
+  let appConfig = require('../../utils/app_config');
+
+  import WxNotificationCenter from '../../libs/WxNotificationCenter';
+  import WxValidate from '../../libs/WxValidate';
+
+
+
+  export default class repair_order extends wepy.page {
+    config = {
+      navigationBarTitleText: '设备报修',
+      navigationBarBackgroundColor: '#FF8000'
+    };
+
+    data = {
+      pageShow:true,
+      hasSelect: 'repairTypeItem repairTypeItemChecked',
+      noSelect: 'repairTypeItem',
+
+      ishidden: false,
+      projectCode: '',//工程编码
+      projectName: '',
+      projectList:[],
+
+      devTroubleTypes: [],//小程序故障类型，1无法充电，2无法升高行走，3手柄故障 ,4续航不足 ,5漏油 ,6其他故障
+      troubleInfo: '',//故障信息
+      filePath:[],//附件
+      filePathAll:[],
+      contactTel: '',//联系电话
+      isEditPhone:false,
+      repairSource: 0,//报修来源,0:客户;1:客户经理;2:服务工程师
+      workSource: 1,//工单来源 , 1客户，2,400客服 , 3,GPS
+
+      repairTypes: [
+        {value: '无法充电', label: '无法充电'},
+        {value: '无法升高行走', label: '无法升高行走'},
+        {value: '手柄故障', label: '手柄故障'},
+        {value: '续航不足', label: '续航不足'},
+        {value: '漏油', label: '漏油'},
+        {value: '其他故障', label: '其他故障'},
+      ],
+    };
+
+
+    onLoad(option) {
+      let that = this;
+      this.getMyDoingProject().then(res=>{}).catch(err=>{});
+      this.getInfo().then(res=>{}).catch(err=>{});
+
+      WxNotificationCenter.addNotification(NOTIFI_REPAIR_SELECT_ADDRESS, that.addressCb,that);
+      this.WxValidate = new WxValidate({
+        projectName:{ required: true},
+        devTroubleTypes:{
+          required: true,
+        },
+        remarks:{
+          required: false,
+          maxLength:200
+        },
+        filePath:{
+          required: true
+        },
+        contactTel:{
+          required: true,
+          tel:true
+        }
+      }, {
+        projectName:{ required: '请选择工程地址'},
+        devTroubleTypes:{ required: '请选择报修类型'},
+        remarks:{ required: '请输入故障描述',maxLength:'字数不能大于200',},
+        filePath:{ required: '请上传故障图片'},
+        contactTel:{ required: '请输入联系电话',tel:'请输入正确的11位手机号码'},
+      });
+
+    }
+
+    async getInfo(){
+      let that = this;
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode == 0){
+        that.contactTel = result.data.data.mobile;
+        that.$apply();
+        return result
+      }else {
+        throw result;
+      }
+    }
+
+    async upLoadImgs(){
+      let arr = this.filePath;
+      this.filePathAll = [];
+      for (let i = 0; i <arr.length ; i++) {
+          await api.uploadFile({
+            filePath:arr[i]
+          }).then(res=>{
+            if(res && res.errCode == 0){
+              this.filePathAll.push(res.data.path);
+            }
+          });
+      }
+    }
+
+    // 保存formId
+    async saveFormId(formId){
+      let result = await api.saveFormId({
+        method:'POST',
+        showError:false,
+        query:{
+          formId:formId
+        }
+      });
+      if(result && result.data && result.data.data &&result.data.errCode === 0){
+        return result.data.data;
+      }else {
+        throw result;
+      }
+    }
+
+    // 新增报修
+    async saveRepair(params){
+      let result = await api.postRepairAdd({
+        method:'POST',
+        query:params
+      });
+      if(result && result.data && result.data.data &&result.data.errCode === 0){
+        return result.data.data;
+      }else {
+        throw result;
+      }
+    }
+
+    // 获取我的工程
+    async getMyDoingProject(){
+      let result = await api.getMyDoingProject();
+      if(result && result.data && result.data.data &&result.data.errCode === 0){
+        this.$apply(()=>{
+          if(result.data.data.length>1){
+            this.projectCode = '';
+            this.projectName = '';
+            this.ishidden = false;
+            this.projectList = result.data.data;
+          }else{
+            this.projectCode = result.data.data[0].projectCode;
+            this.projectName = result.data.data[0].projectName;
+            this.ishidden = true;
+            this.projectList = result.data.data;
+          }
+        });
+        return result.data.data;
+      }else {
+        this.$apply(()=>{
+            this.projectCode = '';
+            this.projectName = '';
+            this.projectList = [];
+            this.ishidden = false;
+        });
+        throw result;
+      }
+    }
+
+    //地址选择回调
+    addressCb(cbData){
+      debugger
+      let that = this.observer;
+      that.$apply(()=>{
+        that.projectCode = cbData.projectCode;
+        that.projectName = cbData.projectName;
+      });
+    }
+
+    methods = {
+
+
+      repairTypeChange(e) {
+        const checked = e.detail.value
+        this.$apply(()=>{
+          this.devTroubleTypes = checked
+        });
+        const changed = {}
+        for (let i = 0; i < this.data.repairTypes.length; i++) {
+          if (checked.indexOf(this.data.repairTypes[i].value) !== -1) {
+            changed['repairTypes[' + i + '].checked'] = true
+          } else {
+            changed['repairTypes[' + i + '].checked'] = false
+          }
+        }
+        this.setData(changed)
+      },
+
+      repairAddress(){
+        if(!this.ishidden){
+
+          this.$preload({
+            projectCode:this.projectCode || '',
+          });
+          this.$navigate('/pages/common/repair_address_list');
+        }
+      },
+
+      chooseImage(e) {
+        let that = this;
+        wx.chooseImage({
+          sourceType: ['album','camera'],//从相册中选取
+          success: res => {
+            that.filePath = that.filePath.concat(res.tempFilePaths);
+            if(that.filePath.length>9){
+              that.filePath = that.filePath.slice(0,9);
+            }
+            that.$apply();
+          }
+        })
+      },
+
+      removeImage (event) {
+        var that = this;
+        var idx = event.currentTarget.dataset.idx;//获取data-src
+        that.filePath.splice(idx,1);
+        that.$apply();
+      },
+
+      handleImagePreview(event){
+        var src = event.currentTarget.dataset.src;//获取data-src
+        var imgList = event.currentTarget.dataset.list;//获取data-list
+        //图片预览
+        wx.previewImage({
+          current: src, // 当前显示图片的http链接
+          urls: imgList // 需要预览的图片http链接列表
+        })
+      },
+
+      inputRemarks(e){
+        this.$apply(()=>{
+          this.troubleInfo = e.detail.value;
+        });
+      },
+
+
+      inputContactTel(e){
+        this.$apply(()=>{
+          this.contactTel = e.detail.value;
+        });
+      },
+
+      editContactTel(e){
+        this.$apply(()=>{
+          this.isEditPhone = true;
+        });
+      },
+
+      focusContactTel(e){
+        this.$apply(()=>{
+          this.isEditPhone = true;
+        });
+      },
+
+      blurContactTel(e){
+        this.$apply(()=>{
+          this.isEditPhone = false;
+        });
+      },
+
+      async formSubmit(e){
+        let that = this;
+
+        tip.loading()
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        if (!this.WxValidate.checkForm(e)) {
+          tip.loaded();
+
+          const errors = this.WxValidate.errorList[0];
+          wx.showModal({
+            content: `${errors.msg}`,
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{if (res.confirm) {}}
+          })
+          return false
+        }
+
+
+        await that.upLoadImgs();
+
+        let params = {
+          "projectCode": that.projectCode,//工程编码
+          "devTroubleTypes": that.devTroubleTypes,//小程序故障类型，1无法充电，2无法升高行走，3手柄故障 ,4续航不足 ,5漏油 ,6其他故障
+          "troubleInfo": that.troubleInfo,//故障信息
+          "filePath": that.filePathAll,//附件
+          "contactTel": that.contactTel,//联系电话
+          "repairSource": that.repairSource,//报修来源,0:客户;1:客户经理;2:服务工程师
+          "workSource": that.workSource//工单来源 , 1客户，2,400客服 , 3,GPS
+        };
+        console.log('fsbParams',that.filePathAll)
+
+
+        await that.saveRepair(params).then(res=>{
+          tip.loaded();
+          wx.navigateBack();
+        }).catch(err=>{
+          tip.loaded();
+          console.log(err)
+        });
+      }
+    }
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+    padding-bottom: 98rpx;
+  }
+  .repairOrderWrap{
+    .container{
+      background: none;
+      .formItem{
+        border-bottom: 1px solid #e5e5e5;
+        background-color: #FFFFFF;
+        padding: 20rpx;
+        .section_title{
+          color: #333333;
+          font-size: 34rpx;
+          min-width: 168rpx;
+        }
+        .arrow {
+          width: 26rpx;
+          height: 26rpx;
+          vertical-align: middle;
+        }
+        .repairTypeGroup{
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          flex-wrap:wrap;
+          .repairTypeItem{
+            height: 60rpx;
+            line-height: 60rpx;
+            margin: 20rpx 0 0;
+
+            border-radius: 8rpx;
+            border: 1px solid #C7C7CD;
+            width:220rpx;
+            text-align:center;
+            label{
+              display: block;
+            }
+            .repairTypeItem_text{
+              color: #666666;
+              font-size: 26rpx;
+            }
+            &.repairTypeItemChecked{
+              border-color: #FF8000;
+              .repairTypeItem_text{
+                color: #FF8000;
+              }
+            }
+          }
+        }
+      }
+      .repairAddress{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        .addressText{
+          text-align: right;
+          flex:1;
+        }
+      }
+      .remarksBox{
+        background-color: #ffffff;
+        margin-top: 20rpx;
+        padding: 20rpx;
+        textarea{
+          min-height: 165rpx;
+          font-size: 26rpx;
+          text-align: left;
+          color: #333333;
+          width: 710rpx;
+        }
+        .placeholder{
+          line-height: 36px;
+          color: #979797;
+          font-size: 26rpx;
+          text-align: left;
+        }
+      }
+      .uploadImages{
+        padding: 20rpx 30rpx;
+        .imageList{
+          display: flex;
+          flex-direction: row;
+          justify-content: flex-start;
+          flex-wrap: wrap;
+          width:710rpx;
+        }
+        .uploadImage{
+          width: 155rpx;
+          height: 155rpx;
+          background-color: #EBEBEB;
+          border-radius: 10rpx;
+          margin: 20rpx 20rpx 0 0;
+          position: relative;
+          .image{
+            width: 155rpx;
+            height: 155rpx;
+          }
+          .icon-delete {
+            position: absolute;
+            right:-10rpx;
+            top: -10rpx;
+            font-size: 50rpx;
+            width: 50rpx;
+            height: 50rpx;
+          }
+        }
+      }
+      .telPhone{
+        margin-top: 20rpx;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        height: 48rpx;
+        line-height: 48rpx;
+        .numberBox{
+          display: flex;
+          flex-direction: row;
+          text-align: left;
+          flex: 1;
+        }
+        .editPhone{
+          font-size: 24rpx;
+          color: #576B95;
+          height: 48rpx;
+          line-height: 48rpx;
+          flex:0.55;
+
+        }
+        input {
+          height: 48rpx;
+          line-height: 48rpx;
+          color: #FF8000;
+          font-size: 34rpx;
+          flex:0.45;
+
+        }
+      }
+      .submitBtnBox{
+        position: fixed;
+        z-index:2;
+        width: 100%;
+        left: 0;
+        bottom: 0;
+        height: 98rpx;
+        display: flex;
+        flex-direction: row;
+        background-color: #ffffff;
+        .btn_yellow{
+          width: 100%;
+          height: 98rpx;
+          background-color:#FF8000;
+          color: #ffffff;
+          font-size: 36rpx;
+          line-height: 98rpx;
+          text-align: center;
+          border: 0;
+          -webkit-border-radius: 0;
+          -moz-border-radius: 0;
+          border-radius: 0;
+          &:before,&:after{
+            border: 0;
+          }
+        }
+        .btn_gray{
+          width: 100%;
+          height: 98rpx;
+          background-color:#B2B2B2;
+          color: #ffffff;
+          font-size: 36rpx;
+          line-height: 98rpx;
+          text-align: center;
+          border: 0;
+          -webkit-border-radius: 0;
+          -moz-border-radius: 0;
+          border-radius: 0;
+          &:before,&:after{
+            border: 0;
+          }
+        }
+      }
+    }
+  }
+</style>

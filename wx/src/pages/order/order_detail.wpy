@@ -1,0 +1,1531 @@
+<template>
+  <view class="orderDetailWrap {{orderStatus != 90 && isIphoneX ?'iphoneXClassPB':'' }}" wx:if="{{ pageShow }}" style="{{orderStatus != 90 ? 'padding-bottom: 98rpx':'padding-bottom: 0' }}">
+    <view class="container">
+      <view class="zn-header" wx:if="{{ !(orderStatus == 90) }}">
+        <view class="zn-header-text">
+          <!--<view class="zn-header-status">退款提示</view>-->
+          <view class="zn-header-status">{{textParams.statusText}}</view>
+          <view class="zn-header-say">
+            <!--<text>正在退款中，将于2个工作日内到您付款账户。如未到账，可凭此信息与我司联系，给您造成的不便尽请谅解。联系电话：4008058558</text>-->
+            <text>{{textParams.otherText}} {{textParams.otherValue}}</text>
+          </view>
+        </view>
+
+        <view class="zn-header-contact">
+          <image src="../../images/icon_kf_white.png" class="post" @tap="contactUs" />
+          <view class="imgT">联系客服</view>
+        </view>
+      </view>
+
+      <view class="zn-header" wx:else>
+        <view class="zn-header-text">
+          <view class="zn-header-status">已取消</view>
+          <view class="zn-header-say"></view>
+        </view>
+        <view class="zn-header-contact">
+          <image src="../../images/icon_kf_white.png" class="post" @tap="contactUs" />
+          <view class="imgT">联系客服</view>
+        </view>
+      </view>
+
+      <view class="customBox" @tap="call({{customParams.phone}})" wx:if="{{ customParams.phone }}">
+        <!--客户经理-->
+        <view class="customLabel">客户经理</view>
+        <view class="customName">{{ customParams.name }}</view>
+        <view class="customPhone"><image src="../../images/icon_sj.png" /><text>{{customParams.phone}}</text></view>
+      </view>
+
+      <view class="addressBox">
+        <!--选择地址-->
+        <view class="addressInfoBox" wx:if="{{addressParams.isShowAddressInfo}}">
+          <!--<view class="userName">-->
+            <!--<text class="name">{{ addressParams.userName }}</text>-->
+            <!--<text class="phone">{{ addressParams.userPhone }}</text>-->
+          <!--</view>-->
+          <view class="projectName">{{ projectName }}</view>
+          <view class="userAddress">{{ addressParams.userAddress }}</view>
+        </view>
+
+        <image class="selectAddressLine" src="../../images/img_fgx.png"></image>
+
+        <!--配送-->
+        <view class="addressSendType" wx:if="{{ addressParams.isShowAddressInfo }}">
+          <view class="storeInfo" >
+            <view style="display: inline-block;width: 244rpx">
+              <text>距</text>
+              <image class="locaIcon" src="../../images/icon_dw.png" @tap="openMap"></image>
+              <text @tap="openMap">{{ addressParams.storeName }}</text>
+            </view>
+            <text class="distance" @tap="openMap">{{ totalMileage }}公里</text>
+          </view>
+          <view class="sendType" @tap="openMap">
+            <text class="{{ (transportParams.transportStatus == 1 || transportParams.transportStatus == 6) ? 'gray':( (transportParams.transportStatus == 4 || transportParams.transportStatus == 5) ? 'green':'yellow' ) }}">{{ transportParams.transportStatusDesc }}</text>
+            <image class="arrow" src="../../images/arrow_left.png"></image>
+          </view>
+        </view>
+
+        <!--配送运费-->
+        <view class="freight" wx:if="{{addressParams.isShowAddressInfo  && sendType === 1 }}">
+          <text wx:if="{{ freight }}"  class="labelName">运费</text>
+          <text wx:if="{{ freight }}" class="price">¥{{ freight || '0' }}</text>
+          <text wx:if="{{ !freight }}" style="color: #FF8000">运费以客户经理沟通确认为准</text>
+
+        </view>
+        <!--自提地址-->
+        <view class="storeAddress" wx:if="{{addressParams.isShowAddressInfo && sendType === 0}}">
+          <text class="lableName">仓库地址</text>
+          <text class="address" @tap="openMap">{{ addressParams.storeAddress }}</text>
+        </view>
+      </view>
+
+      <view class="devBox">
+        <!--设备明细--><!--orderStatus 10,20,30,90 下单和待签约,取消 不显示-->
+        <view class="dateBox" wx:if="{{ orderStatus != 10 && orderStatus != 20 && orderStatus != 30 &&  orderStatus != 90 }}" @tap="jumpDevDetail">
+          <view class="title">设备明细</view>
+          <view class="devInfo">
+            <text>共{{devParams.totalDevice}}台设备，已进场 <text> {{devParams.enterDevice }} </text> 台</text>
+            <image class="arrow" src="../../images/arrow_left.png"></image>
+          </view>
+        </view>
+        <!--设备天数及列表-->
+        <view class="devUseInfo">
+          <text space="nbsp">{{ devParams.estUseDateFormt }}  用车  {{ devParams.estDays }}天</text>
+        </view>
+        <view class="devListBox">
+          <view class="product_list">
+            <view class="item" wx:for="{{devParams.list}}" wx:key="pro" wx:for-index="index" wx:for-item="item" wx:if="{{ item.num && item.num>0 }}">
+              <image class="img" mode="aspectFill" src="{{ item.filePath || '../../images/img_zwt.png'  }}"  data-err-img="devParams.list[{{ index }}].filePath" binderror="onImageError" ></image>
+              <view class="info">
+                <view class="name">
+                  <text>{{ item.shighName }} {{ item.categoryName }}</text>
+                  <!--<text class="discountDesc" wx:if="{{item.isSale == 1}}">{{ item.discountDesc }}</text>-->
+                </view>
+                <!--<view  wx:for="{{item.attrValList}}" wx:key="item">{{item.attrVal}} </view>-->
+                <view class="attribute">{{ item.attrs[0].name }}{{ item.attrs[0].value }} / {{ item.attrs[1].name }}{{ item.attrs[1].value }}</view>
+                <view class="bottom">
+                  <view class="priceTotal">
+                    <view class="price">￥<text>{{ item.promMonthPrice }}</text> /月</view>
+                    <view class="price2">￥<text>{{ item.promDayPrice }}</text>/天</view>
+                  </view>
+                  <view class="buy numChangBox" >{{ item.num }} 台</view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+        </view>
+
+        <view class="priceBox">
+          <text class="labelName">租金</text>
+          <text class="price">¥{{ rent }}</text>
+        </view>
+      </view>
+
+      <!--备注-->
+      <view class="remarksBox" wx:if="{{ remarks }}">
+        {{ remarks }}
+      </view>
+      <!--合同信息--> <!--orderStatus 10,20,90 下单和待签约,取消 不显示-->
+      <view class="contractBox" wx:if="{{ orderStatus != 10 && orderStatus != 20 &&  orderStatus != 90 }}" @tap="jumpContract">
+        <view class="title">合同信息</view>
+        <view>
+          <image class="arrow" src="../../images/arrow_left.png"></image>
+        </view>
+      </view>
+      <!--订单编号和创建时间-->
+      <view class="orderInfoBox">
+        <view class="">订单编号：{{ orderCode }}</view>
+        <view class="">创建时间：{{ createTime }}</view>
+      </view>
+
+      <!--价格信息-->
+      <view class="priceInfoBox">
+        <view class="priceItem">
+          <view class="labelName">租金</view>
+          <view class="labelValue">
+            <text>¥{{ rent }}</text>
+          </view>
+        </view>
+        <view class="priceItem" wx:if="{{ freight }}">
+          <view class="labelName" >运费</view>
+          <view class="labelValue">
+            <text wx:if="{{freight }}">¥{{ freight }}</text>
+          </view>
+        </view>
+
+        <view class="priceItem" wx:if="{{ prepayBondPrice }}">
+          <view class="labelName" >保证金</view>
+          <view class="labelValue">
+            <text wx:if="{{ prepayBondPrice }}">¥{{ prepayBondPrice }}</text>
+          </view>
+        </view>
+
+        <view class="priceItem" wx:if="{{ discounted }}">
+          <view class="labelName">已优惠</view>
+          <view class="labelValue">
+            <text>-¥{{ discounted }}</text>
+          </view>
+        </view>
+        <view class="priceItem" wx:if="{{ payAmount }}">
+          <view class="labelName">已支付</view>
+          <view class="labelValue">
+            <text>-¥{{ payAmount }}</text>
+            <image class="arrow" src="../../images/arrow_left.png"></image>
+          </view>
+        </view>
+
+        <view class="totalPay">
+          <text>待支付金额：<text>¥{{ unpayAmount }}</text></text>
+        </view>
+      </view>
+
+      <!--分享-->
+      <button class="shareBtn" open-type="share" @tap="setToUrl" wx:if="{{  promInfo.showRedPack === 1  }}">
+        <image src="../../images/img_fxsq.png "></image>
+      </button>
+
+      <view class="allBtnBox  {{ isIphoneX?'iphoneXClass':'' }}" wx:if="{{ orderStatus != 90  }}">
+        <!--签约按钮只有在下单和待签约下显示 10或20-->
+        <view class="submitBtnBox" wx:if="{{ orderStatus == 10 || orderStatus == 20 }}">
+          <view class="priceInfo"  @tap="lookRentRlues">
+            <view class="sumInfo">
+              <view class="labelName">预估</view>
+              <view class="price">¥{{ totalPrice }}</view>
+              <image class="tips" src="../../images/img_zigz.png"></image>
+            </view>
+            <view class="tipText">最终费用，以实际使用天数为准。</view>
+          </view>
+          <button class="{{orderStatus!=10?'btn btn_yellow':'btn btn_gray' }}" @tap="submit">
+            签  约
+          </button>
+        </view>
+        <!--取消的订单也不显示按钮-->
+        <view class="btnBox" wx:elif="{{ showBtn && orderStatus != 90 }}">
+          <view class="btns btn_bor_bl" @tap="jumpDevDetail" wx:if="{{ orderStatus == '40' }}" ><text>查看明细</text></view>
+          <view class="btns btn_bg_ye" wx:if="{{ countDown != 0 }}" @tap="jumpToPay">
+            <image src="../../images/icon_djs_d.png"></image>
+            <text>付款 {{ countDown }}</text>
+          </view>
+          <view class="btns btn_bor_ye" wx:else @tap="jumpToPay"><text>付款</text></view>
+        </view>
+      </view>
+
+    </view>
+    <rentrules :isShow.sync="rentRules" @cb.user="closeCbRentRlues"></rentrules>
+    <custSelect  wx:if="{{ orderStatus == '20' }}"  hidden="{{ isShowCustSelect }}" @selectedCb.user="selectedCb" @footBtnCb.user="footBtnCb"  @hiddenModel.user="footBtnCb"></custSelect>
+    <share_alert :dialogIsShow.sync="isShowShareDialog" :num.sync="shareRedMoney" @cancelCb.user="cancelCb" @sureCb.user="sureCb" ></share_alert>
+    <contactus_screen :hiddenView.sync="hiddenContact" class="contact" @hiddenModel.user="closeContactType"></contactus_screen>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import utils from '../../utils/util';
+  import {NOTIFI_ORDER_SELECT_ADDRESS} from '../../utils/notif_const'
+  import {USER_CITY,SHOPPING_CARS} from '../../utils/constant'
+  import WxNotificationCenter from '../../libs/WxNotificationCenter';
+  import WxValidate from '../../libs/WxValidate';
+  import dateTimePicker  from '../../libs/dateTimePicker'
+  import RentRules from '../../components/rentRules';
+  import share_alert from  "../../components/dialog_img"; // 分享弹窗
+  import custSelect from '../../components/select_default';
+  import Contact_screen from "../../components/contactus_screen"//选择客服方式
+  export default class order_detail extends wepy.page {
+    config = {
+      navigationBarTitleText: '订单详情',
+      navigationBarBackgroundColor:'#ffffff',
+      navigationBarTextStyle: 'black',
+      enablePullDownRefresh: true
+    };
+
+    //分享
+    onShareAppMessage(res) {
+      let that = this;
+      if (res.from === 'button') {
+        // 来自页面内转发按钮
+        console.log(res.target,res);
+        that.$parent.setEventsLogs({
+          event_id:'order_detail_share',
+          params:{
+            order_code:  that.orderCode,
+            path: '/pages/share/coupon_share?orderCode='+that.orderCode
+          }
+        });
+        return {
+          title: '众能联合',
+          desc: '分享优惠券',
+          imageUrl:"https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/wx_mini/shareS.png",
+          path: '/pages/share/coupon_share?orderCode='+this.orderCode
+        }
+      }else {
+        that.$parent.setEventsLogs({
+          event_id:'order_detail_share',
+          params:{
+            order_code:  that.orderCode,
+            path: '/pages/order/order_detail?orderCode='+that.orderCode
+          }
+        });
+        return {
+          title: '众能联合',
+          desc: '点击查看订单详情',
+          path: '/pages/order/order_detail?orderCode='+this.orderCode
+        }
+      }
+    };
+
+    components = {
+      rentrules: RentRules,
+      custSelect:custSelect,
+      contactus_screen:Contact_screen,
+      share_alert:share_alert
+    };
+
+
+    data = {
+      isIphoneX:false, //是否是isIphoneX
+      pageShow:false,
+      fromParams:{},
+      orderCode:'', // 订单编号
+      orderStatus:'', // 订单状态
+      isFristLoad:true, // 是否为第一次加载
+      rentRules:false, // 是否展示租金规则
+      isShowShareDialog:true,//是否展示分享窗
+      hiddenContact:false,//是否展示客服方式
+      isShowCustSelect:true, // 是否展示签约下拉选择
+      userAuthStatus:null, // 个人签约
+      entAuthStatus:null, // 企业签约
+      toUrl:'',
+      textParams:{ // 文案
+        statusText:'', // 订单状态文案，第一行
+        statusValue:"",
+        otherText:'', // 订单状态文案，第er行
+        otherValue:''
+      },
+      addressParams:{
+        isShowAddressInfo:true, // 默认展示点击选择用车地址按钮
+        selectedId:0, // 选中的地址id
+        userName:'', // 用车联系人
+        userPhone:'', // 用车联系人手机
+        userAddress:'', // 用车地址
+        carAddressCode: "", // 用车地址编码
+        userCity:'', // 用车城市
+        userLat:'', // 用车地址纬度
+        userLon:'', // 用车地址经度
+        storeName:'', // 仓库名称
+        storeAddress:'', // 仓库地址
+        storeLat:'', // 仓库地址纬度
+        storeLon:'', // 仓库地址经度
+        storeCode: "", // 仓库编码
+      },
+      projectName:'', // 项目名称
+      totalMileage:'', // 公里数
+      customParams:{ // 客户经理
+        name:'',
+        phone:''
+      },
+      sendType: 1, // 配送方式 1 配送 0自提
+      transportParams:{ //运输状态
+        transportStatus:'', //1配送-备货中 2配送-待出库3配送-配送中4配送-配送完成5自提-已提货6自提-备货中7自提-待提货
+        transportStatusDesc:''
+      },
+      freight:0, // 运费
+      rent:0, // 租金
+      totalPrice:0, // 总费用
+      payAmount: 0, //-----------已支付
+      unpayAmount: 0, //---------未支付
+      prepayBondPrice: 0, // --- 保证金
+      discounted: 0, //-----已优惠
+      devParams:{
+        totalDevice:0,
+        enterDevice:0,
+        estUseDate:'',
+        estUseDateFormt:'', // M月d日
+        estDays:0,
+        estEndDate:'',
+        list:[]
+      },
+      remarks:'',
+      createTime:'', // 创建时间
+      serviceParams:{
+        serviceEng: null,
+        serviceEngPhone: null
+      },
+      promInfo:{
+        shareTitle: "", // 弹出提示，与前端确认内容
+        shareDesc: "",
+        shareImg: "",
+        shareUrl: "",
+        shareRedMoney:0,
+        showRedPack: 1 // 是否显示红包 0否， 1是
+      },
+      countDown:0, // 倒计时
+      countDownFn:'',
+      showBtn:false
+    };
+
+    onLoad(options) {
+      let that = this;
+      let app = getApp();
+
+      that.isIphoneX = that.$parent.globalData.isIphoneX;
+      api.znSetStorageSync('share',0)
+      that.orderCode = options.orderCode;
+
+      var pages = getCurrentPages();    //获取加载的页面
+      var currentPage = pages[pages.length - 2];   //获取当前页面的对象
+      var url = currentPage.route;   //当前页面url
+      this.fromUrl = url;
+      if(this.fromUrl == 'pages/order/place_order' && this.$parent.orderCoupon){
+        this.isShowShareDialog = false;
+      }
+
+      if(pages.length - 1>0){
+        that.$parent.setReferrerLogs( pages[pages.length - 2]);
+      }else{
+        that.$parent.setReferrerLogs('null');
+      }
+      that.$parent.setEnterPageLogs();
+      that.$parent.setLeavePageLogs();
+      that.$parent.setPageTitleLogs(options.orderCode + '订单详情');
+      that.$parent.setUrlLogs(url+'_option_'+options);
+
+
+      that.init();
+      this.$apply();
+    }
+
+    onReady(){
+      this.isFristLoad = false;
+      this.$apply();
+    }
+
+    onShow(){
+      //第一次不执行
+      if(!this.isFristLoad){
+        this.init();
+      }
+      this.$apply();
+    }
+
+    // 下拉
+    onPullDownRefresh() {
+      this.init();
+      wx.stopPullDownRefresh();
+      this.$apply();
+    }
+
+    onUnload() {
+      let that = this;
+      clearInterval(that.countDownFn);
+      if(this.fromUrl == 'pages/order/place_order' && this.toUrl != 'pages/share/coupon_share'){
+        wx.switchTab({
+          url: '/pages/main/order'
+        });
+      }else if(this.fromUrl == 'pages/order/place_order' && this.toUrl == 'pages/share/coupon_share'){
+        let shareState = api.znGetStorageSync('share');
+        if( shareState != 1){
+          wx.switchTab({
+            url: '/pages/main/order'
+          });
+        }
+      }
+      that.countDownFn = '';
+      this.$apply();
+    }
+
+    onHide() {
+      let that = this;
+      this._hide = true;
+      that.$parent.setLeavePageLogs();
+      that.$parent.sendLogs();
+      clearInterval(this.countDownFn);
+      this.$apply();
+    }
+
+    methods = {
+      onImageError: function(ev){
+        let that = this;
+        var _errImg=ev.target.dataset.errImg;
+        var _errObj={};
+        _errObj[_errImg]="../../images/img_zwt.png";
+        console.log( ev.detail.errMsg+"----" + "----" +_errImg );
+        that.setData(_errObj);
+      },
+
+      // 拨打电话
+      call(phoneNum){
+        let that = this;
+        if(phoneNum && phoneNum.length == 11 ){
+          wx.makePhoneCall({
+            phoneNumber: phoneNum
+          });
+        }else{
+          wx.showModal({
+            title: '警告',
+            content: '手机号码格式不正确'
+          })
+        }
+      },
+
+      contactUs() {
+        this.hiddenContact = true;
+        this.$apply();
+      },
+
+      closeContactType:function () {
+        var that = this;
+        that.hiddenContact = false;
+        that.$apply();
+      },
+
+      // 查看租金规则
+      lookRentRlues(e) {
+        let that = this;
+        that.rentRules = true;
+
+        that.$parent.setEventsLogs({
+          event_id:'order_detail_rule',
+          params:{
+            order_code:  that.orderCode,
+          }
+        });
+
+        that.$apply();
+
+      },
+
+      // 关闭租金规则回调
+      closeCbRentRlues(value) {
+        let that = this;
+        that.rentRules = value;
+        that.$apply();
+      },
+
+      //合同信息
+      async jumpContract(){
+        let that = this;
+        let json = await api.getSignWeb({
+          query:{
+            orderId:this.orderCode,
+          }
+        });
+        if (json && json.data.data) {
+          let signUrl = json.data.data.url;
+          that.$parent.setEventsLogs({
+            event_id:'order_detail_contract',
+            params:{
+              order_code:  that.orderCode,
+            }
+          });
+          wx.navigateTo({
+            url: '/pages/main/web_sign?orderCode='+this.orderCode +'&type=2'+'&url='+ encodeURIComponent(signUrl),
+          })
+        }
+      },
+
+      //去支付
+      jumpToPay(){
+        let that = this;
+        that.$parent.setEventsLogs({
+          event_id:'order_detail_pay',
+          params:{
+            order_code:  that.orderCode,
+            payAmount: that.payAmount,
+            rent: that.rent,
+            freight: that.freight,
+            prepayBondPrice: that.prepayBondPrice,
+            discounted: that.discounted,
+            unPayAmount: that.unPayAmount,
+          }
+        });
+        wx.navigateTo({
+          url: '/pages/order/order_start_pay?orderCode=' + this.orderCode,
+        })
+      },
+
+      // 去签约
+      async submit(){
+        //tip.loading();
+        console.log(1)
+        await this.canSign();
+        console.log(2)
+        this.isShowCustSelect = !this.isShowCustSelect;
+        console.log(3)
+        //tip.loaded();
+        this.$apply();
+      },
+
+      //去签约下 选择后回调
+      selectedCb(item){
+        let that = this;
+        this.isShowCustSelect = !this.isShowCustSelect;
+        if(item.name = "以个人身份签约"){
+          // 调取接口返回是否签约信息
+          if(this.userAuthStatus != 1 ){
+            // 未认证 跳转认证
+            wx.showModal({
+              content: '请先完成个人认证',
+              // showCancel: false,
+              confirmColor: '#FF8000',
+              confirmText:'去认证',
+              showCancel:false,
+              success: res=>{
+                if (res.confirm) {
+                  wx.navigateTo({
+                    url: '/pages/mine/personal_authentication?needCb=true&&orderCode='+this.orderCode
+                  });
+                }
+              }
+            });
+
+          }else{
+            wx.navigateTo({
+              url: '/pages/order/create_sign_person?orderCode='+this.orderCode+"&projectName="+this.projectName
+
+            });
+          }
+
+        }
+
+
+      },
+
+      //去签约下 取消
+      footBtnCb(){
+        this.isShowCustSelect = !this.isShowCustSelect;
+      },
+
+      //分享弹窗 取消事件
+      cancelCb(){
+        this.isShowShareDialog = true;
+        this.toUrl=''
+        this.$apply();
+      },
+
+      //分享弹窗 确定事件
+      sureCb(){
+        this.isShowShareDialog = true;
+        this.toUrl='pages/share/coupon_share'
+        this.$apply();
+      },
+
+      //点击分享按钮
+      setToUrl(){
+        this.toUrl='pages/share/coupon_share'
+        this.$apply();
+      },
+
+      //打开分享弹窗
+      showShare(){
+        this.isShowShareDialog = false;
+        this.$apply();
+      },
+
+      // 跳转设备明细
+      jumpDevDetail(){
+        let that = this;
+        that.$parent.setEventsLogs({
+          event_id:'order_detail_devDetail',
+          params:{
+            order_code:  that.orderCode,
+          }
+        });
+        wx.navigateTo({
+          url: '/pages/order/device_detail_list?orderCode='+this.orderCode,
+        });
+      },
+
+      // 打开地图
+      openMap(){
+        let that = this;
+        console.log(Number(this.addressParams.storeLat),Number(this.addressParams.storeLon))
+        wx.openLocation({
+          latitude: Number(this.addressParams.storeLat), // 纬度，浮点数，范围为90 ~ -90
+          longitude: Number(this.addressParams.storeLon), // 经度，浮点数，范围为180 ~ -180。
+          name: this.addressParams.storeName,
+          address: this.addressParams.storeAddress, // 地址详情说明
+          scale: 12, // 地图缩放级别,整形值,范围从1~28。默认为最大
+        });
+        that.$parent.setEventsLogs({
+          event_id:'order_detail_store',
+          params:{
+            order_code:  that.orderCode,
+            lat:that.addressParams.storeLat,
+            lot:that.addressParams.storeLon
+          }
+        });
+      },
+
+    };
+
+    //页面初始化
+    async init(){
+      tip.loading();
+      await this.getInfo();
+      await this.paymentCountdown();
+      this.pageShow=true;
+      tip.loaded();
+      this.$apply();
+    };
+
+    //获取详情信息
+    async getInfo(){
+      let that = this;
+      let result = await api.getOrderDetaial({
+        query:{
+          orderCode:that.orderCode
+        }
+      });
+      if( result && result.data && (result.data.errCode==0) ){
+        // 订单状态，订单需求编码
+        that.orderStatus = result.data.data.orderStatus;
+        //抬头文案
+        that.textParams.statusText = result.data.data.copywriting[0].name;
+        that.textParams.statusValue = result.data.data.copywriting[0].value;
+        that.textParams.otherText = result.data.data.copywriting[1]?result.data.data.copywriting[1].name:'';
+        that.textParams.otherValue = result.data.data.copywriting[1]?result.data.data.copywriting[1].value:'';
+        //客户经理 姓名 电话
+        that.customParams.name = result.data.data.custManagerName;
+        that.customParams.phone = result.data.data.custManagerPhone;
+        //用户姓名，电话，地址，仓库名称，仓库编码，仓库地址，仓库经纬度
+        that.addressParams.userName = result.data.data.contactName; //
+        that.addressParams.userPhone = result.data.data.contactPhone;
+        that.addressParams.userAddress = result.data.data.orderInfo.useAddress;
+        that.addressParams.storeName =  result.data.data.storeName;
+        that.addressParams.storeCode =  result.data.data.storeCode;
+        that.addressParams.storeAddress =  result.data.data.storeAddress;
+        that.addressParams.storeLon =  result.data.data.storeLongitude;
+        that.addressParams.storeLat =  result.data.data.storeLatitude;
+        //配送方式 运输状态
+        that.sendType = result.data.data.orderInfo.isFreight;
+        that.transportParams.transportStatus = result.data.data.orderInfo.transportStatus;
+        that.transportParams.transportStatusDesc = result.data.data.orderInfo.transportStatusDesc;
+        //工程名称，距离，费用，已优惠，已支付，未支付
+        that.projectName = result.data.data.orderInfo.projectName;
+        that.totalMileage = result.data.data.orderInfo.totalMileage;
+        that.freight = result.data.data.orderInfo.estFreightPrice;
+        that.rent = result.data.data.orderInfo.estRentPrice;
+        that.totalPrice = result.data.data.orderInfo.estTotalPrice;
+        that.discounted = result.data.data.discounted;
+        that.payAmount = result.data.data.payAmount;
+        that.unpayAmount = result.data.data.unpayAmount;
+
+        //设备明细，总台数，进场台数，开始时间，天数，结束时间，设备列表
+        that.devParams.totalDevice = result.data.data.totalDevice || 0 ;
+        that.devParams.enterDevice = result.data.data.enterDevice || 0 ;
+        that.devParams.estUseDate = result.data.data.orderInfo.estUseDate;
+        if(that.devParams.estUseDate){
+          let estUseDate =  that.devParams.estUseDate;
+          let date = new Date(Date.parse(estUseDate.replace(/-/g,  "/")));
+          that.devParams.estUseDateFormt = utils.format('M月d日',date);
+        }
+
+        that.devParams.estDays = result.data.data.orderInfo.estDays;
+        that.devParams.estEndDate = result.data.data.orderInfo.estEndDate;
+        that.devParams.list = result.data.data.orderDevList;
+        //备注
+        that.remarks = result.data.data.orderInfo.remarks;
+        //订单编号，创建时间
+        that.createTime = result.data.data.createTime;
+        //服务工程师，姓名手机
+        that.serviceParams.serviceEng = result.data.data.serviceEng;
+        that.serviceParams.serviceEngPhone = result.data.data.serviceEngPhone;
+        //优惠券 分享金额，是否显示分享图标
+        if(that.$parent.globalData.orderCoupon){
+          that.promInfo.shareRedMoney = result.data.data.promInfo.shareRedMoney;
+          that.promInfo.showRedPack = result.data.data.promInfo.showRedPack;
+        }else {
+          that.promInfo.showRedPack = 0
+        }
+        //保证金
+        that.prepayBondPrice = result.data.data.orderInfo.prepayBondPrice;
+      }
+      this.$apply();
+    };
+
+    // 去签约判断是否已认证
+    async canSign(){
+      let that = this;
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode == 0){
+        that.userAuthStatus = result.data.data.userAuthStatus; // 0: 未认证, 1: 已认证
+        that.entAuthStatus = result.data.data.entAuthStatus; //  0: 未认证, 1: 已认证
+      }
+      that.$apply();
+    }
+
+    //  付款倒计时
+    async paymentCountdown(){
+      let that = this;
+
+
+
+      let result  = await api.paymentCountdown({
+        query:{
+          orderCode:this.orderCode
+        }
+      });
+
+      if(result && result.data && result.data.errCode == 0){
+
+        if(result.data.data>0 && (result.data.data - (new Date().getTime())>0)){
+          that.countDownFn = setInterval(function () {
+            var timestamp = new Date().getTime();
+            var endtime = result.data.data;
+            var hours = (utils.countdown(timestamp, endtime).h>9?'':'0')+utils.countdown(timestamp, endtime).h;
+            var minutes = (utils.countdown(timestamp, endtime).minutes>9?'':'0')+utils.countdown(timestamp, endtime).minutes;
+            var s =(utils.countdown(timestamp, endtime).s>9?'':'0')+ utils.countdown(timestamp, endtime).s;
+            that.countDown = hours+':'+minutes+':'+s;
+            that.$apply();
+          },1000);
+          console.log(that.countDownFn)
+        }else{
+          that.countDown = 0;
+          clearInterval(that.countDownFn);
+          that.$apply();
+        }
+        that.showBtn = true;
+        that.$apply();
+      }
+    }
+
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+  }
+  .orderDetailWrap{
+    padding-bottom: 98rpx;
+    .container{
+      background: none;
+    }
+
+
+    .zn-header {
+      height: 210rpx;
+      background-image: linear-gradient(-269deg, #FE7A00 0%, #FEB70B 96%);
+      /*border-bottom: 20rpx solid #EFEFF4;*/
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      justify-content:space-between;
+      align-content:center;
+      .zn-header-status {
+        font-family: "PingFangHK-Regular";
+        font-size: 34rpx;
+        color: #FFFFFF;
+      }
+      .zn-header-say {
+        margin-top:10rpx;
+        font-family: "PingFangHK-Regular";
+        font-size: 24rpx;
+        line-height: 32rpx;
+        color: #FFFFFF;
+      }
+
+      .zn-header-text{
+        margin-left: 20rpx;
+        /*margin-top: 60rpx;*/
+        padding-right: 20rpx;
+        display: flex;
+        flex-direction: column;
+        justify-content:center;/*x轴对齐方式*/
+        height: 100%;        /**屏幕高度百分百*/
+      }
+      .zn-header-contact{
+        margin-top: 65rpx;
+        margin-right: 24rpx;
+        width: 72rpx;
+        text-align: center;
+      }
+      .post {
+        width: 54rpx;
+        height: 54rpx;
+      }
+      .imgT{
+        color: #ffffff;
+        font-size: 18rpx;
+        line-height: 26rpx;
+        width: 72rpx;
+      }
+
+
+    }
+
+    .customBox{
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      padding: 20rpx;
+      background-color: #ffffff;
+      margin-bottom: 20rpx;
+      .customLabel{
+        font-size: 34rpx;
+        color: #333333;
+        line-height: 48rpx;
+      }
+      .customName{
+        font-size: 34rpx;
+        color: #333333;
+        line-height: 48rpx;
+      }
+      .customPhone{
+        font-size: 34rpx;
+        color: #FF8000;
+        line-height: 48rpx;
+        padding-left: 42rpx;
+        position: relative;
+        /*vertical-align: middle;*/
+        image{
+          width: 42rpx;
+          height: 42rpx;
+          position: absolute;
+          left: 0;
+          top: 50%;
+          margin-top: -21rpx;
+          /*vertical-align: middle;*/
+        }
+        text{
+          font-size: 34rpx;
+          color: #FF8000;
+          line-height: 48rpx;
+          /*vertical-align: middle;*/
+        }
+
+      }
+    }
+
+    .addressBox{
+      background-color: #ffffff;
+
+      .selectAddressBox{
+
+        padding: 40rpx 0;
+        .selectAddress{
+          width: 560rpx;
+          height: 76rpx;
+          position: relative;
+          margin: 0 auto;
+          text-align: center;
+        }
+
+        .btn_bg{
+          width: 560rpx;
+          height: 76rpx;
+          position: absolute;
+          left: 0;
+          top: 0;
+        }
+        text{
+          text-align: center;
+          width: 560rpx;
+          height: 76rpx;
+          line-height: 76rpx;
+          font-size: 30rpx;
+          color: #666;
+        }
+
+      }
+
+      .addressInfoBox{
+        position: relative;
+        padding: 20rpx 20rpx 20rpx 20rpx;
+        .userName{
+
+          .name{
+            font-size: 34rpx;
+            color: #333333;
+            font-weight: 700;
+            line-height: 48rpx;
+          }
+          .phone{
+            font-size: 34rpx;
+            color: #333333;
+            font-weight: 700;
+            line-height: 48rpx;
+            margin-left: 40rpx;
+          }
+        }
+        .userAddress{
+          font-size: 30rpx;
+          line-height: 42rpx;
+          margin-top: 10rpx;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          color: #999999;
+
+        }
+        .projectName{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 32rpx;
+          margin-top: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+
+      }
+
+      .selectAddressLine{
+        width: 100%;
+        height: 2px;
+        display:block;
+        margin: 0;
+      }
+
+      .addressSendType{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20rpx;
+        .storeInfo{
+          text{
+            font-size: 34rpx;
+            line-height: 48rpx;
+            color: #333333;
+            vertical-align: middle;
+            &.distance{
+              /*margin-left: 70rpx;*/
+            }
+          }
+          .locaIcon{
+            width: 36rpx;
+            height: 36rpx;
+            vertical-align: middle;
+          }
+        }
+        .sendType{
+          line-height: 48rpx;
+          vertical-align: middle;
+          text{
+            text-align: center;
+            font-size: 30rpx;
+            color: #666666;
+            height: 48rpx;
+            line-height: 48rpx;
+            vertical-align: middle;
+            &.gray{
+              color: #99999;
+            }
+            &.green{
+              color: #0BB024;
+            }
+            &.yellow{
+              color: #FF8000;
+            }
+          }
+          .arrow{
+            width: 26rpx;
+            height: 26rpx;
+            vertical-align: middle;
+          }
+        }
+      }
+
+      .freight{
+        border-top: 1px solid #E5E5E5;
+        padding: 20rpx;
+        .lableName{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+        .price{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #FF8000;
+          padding-left: 20rpx;
+        }
+      }
+      .storeAddress{
+        border-top: 1px solid #E5E5E5;
+        padding: 20rpx;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        .lableName{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #333333;
+          display: inline-block;
+          width: 244rpx;
+        }
+        .address{
+          display: inline-block;
+          flex: 1;
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+      }
+
+    }
+
+    .devBox{
+      margin-top: 20rpx;
+      background-color: #ffffff;
+
+      .dateBox{
+        padding: 22rpx 20rpx 22rpx 0;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        .title{
+          height: 40rpx;
+          line-height: 40rpx;
+          font-size: 34rpx;
+          color: #333333;
+          border-left:6rpx solid #FF8000;
+          padding-left: 20rpx;
+        }
+        .devInfo{
+          text{
+            font-size: 26rpx;
+            color: #45474F;
+            line-height: 40rpx;
+            text{
+              color: #FF8000;
+            }
+          }
+          .arrow{
+            width: 26rpx;
+            height: 26rpx;
+            vertical-align: middle;
+          }
+        }
+      }
+      .devUseInfo{
+        padding: 20rpx;
+        font-size: 26rpx;
+        line-height: 38rpx;
+        color: #333333;
+        border-top: 1px solid #E5E5E5;
+        border-bottom: 1px solid #E5E5E5;
+        text{
+          font-size: 26rpx;
+          line-height: 38rpx;
+          color: #333333;
+        }
+      }
+      .devListBox{
+
+        .product_list {
+          .item {
+            display:flex;
+            flex-direction:row;
+            background:#fff;
+            padding:20rpx;
+            height:auto;
+            width:auto;
+            border-bottom: 1px solid #EFEFF4;
+            .img {
+              width:220rpx;
+              height:160rpx;
+              background:#DBDBDB;
+              margin-left:0rpx;
+            }
+            .info {
+              flex-direction:column;
+              flex:1;
+              padding:0 30rpx;
+              padding-right:0;
+              position: relative;
+              height:160rpx;
+              .name {
+                font-size:32rpx;
+                color:#333333;
+                .discountDesc{
+                  font-size: 18rpx;
+                  color: #ffffff;
+                  background: #FF5D5D;
+                  border-radius: 8rpx;
+                  width: 60rpx;
+                  height: 28rpx;
+                  text-align: center;
+                  line-height: 28rpx;
+                  display: inline-block;
+                  vertical-align: top;
+                  margin-left: 15rpx;
+                  margin-top: 10rpx;
+                }
+              }
+
+              .attribute {
+                font-size:24rpx;
+                color:#979797;
+                padding:20rpx 10rpx 18rpx 0;
+                letter-spacing:0;
+              }
+
+              .bottom {
+                .priceTotal {
+                  flex-direction:row;
+                  display:flex;
+                  flex: 1;
+                  .price {
+                    font-size:20rpx;
+                    color: #979797;
+                    text {
+                      font-size:34rpx;
+                    }
+                  }
+
+                  .price2 {
+                    font-size:20rpx;
+                    color: #979797;
+                    letter-spacing: 0;
+                    margin-left: 30rpx;
+                    text {
+                      font-size: 34rpx;
+                    }
+                  }
+                }
+
+              }
+
+            }
+          }
+
+          .buy {
+            width: 156rpx;
+            text-align: center;
+            vertical-align: top;
+            position: absolute;
+            top: 50%;
+            margin-top: -23rpx;
+            right: 0;
+            text-align: right;
+            .plus{
+              width: 48rpx;
+              height: 48rpx;
+              vertical-align: top;
+            }
+            text{
+              width: 60rpx;
+              text-align: center;
+              font-size: 32rpx;
+              line-height: 48rpx;
+              height: 48rpx;
+              color: #45474F;
+              vertical-align: top;
+              display:inline-block;
+            }
+            input{
+              width: 60rpx;
+              text-align: center;
+              font-size: 32rpx;
+              line-height: 48rpx;
+              height: 48rpx;
+              color: #45474F;
+              vertical-align: top;
+              display:inline-block;
+            }
+            .reduce{
+              width: 48rpx;
+              height: 48rpx;
+              vertical-align: top;
+            }
+          }
+        }
+      }
+      .priceBox{
+        padding: 20rpx;
+        .lableName{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+        .price{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #FF8000;
+          padding-left: 20rpx;
+        }
+      }
+    }
+
+    .remarksBox{
+      background-color: #ffffff;
+      margin-top: 20rpx;
+      padding: 20rpx;
+      min-height: 150rpx;
+      font-size: 26rpx;
+      text-align: left;
+      color: #333333;
+      word-break: break-word;
+    }
+
+    .contractBox{
+      margin-top: 20rpx;
+      background-color: #ffffff;
+      padding: 22rpx 20rpx 22rpx 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      .title{
+        height: 40rpx;
+        line-height: 40rpx;
+        font-size: 34rpx;
+        color: #333333;
+        border-left:6rpx solid #FF8000;
+        padding-left: 20rpx;
+      }
+      .arrow{
+        width: 26rpx;
+        height: 26rpx;
+        vertical-align: middle;
+      }
+    }
+
+    .orderInfoBox{
+      margin-top: 20rpx;
+      background-color: #ffffff;
+      padding: 20rpx;
+      view{
+        line-height: 36rpx;
+        color: #333333;
+        font-size: 26rpx;
+        font-family: PingFangSC-Regular;
+
+      }
+    }
+
+    .priceInfoBox{
+      margin-top: 20rpx;
+      background-color: #ffffff;
+      padding: 10rpx 0 0;
+      .priceItem{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        margin-top: 10rpx;
+        .labelName{
+          padding-left: 20rpx;
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+        .labelValue{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+          position: relative;
+          /*padding-right: 48rpx;*/
+          padding-right: 20rpx;
+          text{
+            font-size: 34rpx;
+            color: #333333;
+            line-height: 48rpx;
+          }
+          .arrow{
+            display: none;
+            position: absolute;
+            top: 50%;
+            margin-top: -13rpx;
+            right: 20rpx;
+            width: 26rpx;
+            height: 26rpx;
+            vertical-align: middle;
+          }
+        }
+      }
+      .totalPay{
+        margin-top: 20rpx;
+        text-align: right;
+        padding: 20rpx;
+        border-top: 1px solid #E5E5E5;
+        text{
+          vertical-align: bottom;
+          line-height: 70rpx;
+          font-size: 34rpx;
+          color: #333333;
+          text{
+            font-size: 50rpx;
+            color: #FF8000;
+          }
+        }
+      }
+    }
+
+
+    .shareBtn{
+      position:fixed;
+      bottom:28%;
+      right:10rpx;
+      width:90rpx;
+      height:110rpx;
+      border:0;
+      background:none;
+      border-radius:0;
+      padding:0;
+      &:after,&:before{
+        border: 0;
+        background: none;
+        border-radius: 0;
+      }
+      image{
+        width:90rpx;
+        height:110rpx;
+      }
+    }
+    .allBtnBox{
+      position: fixed;
+      z-index:2;
+      width: 100%;
+      left: 0;
+      bottom: 0;
+    }
+
+    .submitBtnBox{
+      height: 98rpx;
+      display: flex;
+      flex-direction: row;
+      background-color: #ffffff;
+      .priceInfo{
+        flex: 1;
+        padding: 12rpx 20rpx;
+        border-top: 1px solid #E5E5E5;
+        .sumInfo{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          .labelName{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #333333;
+            font-size: 34rpx;
+          }
+          .price{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #FF8000;
+            font-size: 34rpx;
+            margin-left: 20rpx;
+          }
+          .tips{
+            margin-left: 15rpx;
+            width: 30rpx;
+            height: 30rpx;
+          }
+        }
+        .tipText{
+          height: 26rpx;
+          line-height: 26rpx;
+          color: #B2B2B2;
+          font-size: 18rpx;
+        }
+      }
+      .btn_yellow{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#FF8000;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+      .btn_gray{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#B2B2B2;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+    }
+
+    .btnBox{
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-end;
+      background-color: #ffffff;
+      padding: 24rpx 0;
+      border-top: 1px solid #E5E5E5;
+      .btns{
+        height: 58rpx;
+        text-align: center;
+        line-height: 58rpx;
+        border: 1px solid #666;
+        color: #666666;
+        background-color: #ffffff;
+        padding: 0 30rpx;
+        font-size: 26rpx;
+        margin-right: 20rpx;
+        vertical-align: middle;
+        &.btn_bor_ye{
+          background-color: #ffffff;
+          border: 1px solid #FF8000;
+          text{
+            font-size: 26rpx;
+            color: #FF8000;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+        &.btn_bg_ye{
+          background-color: #FF8000;
+          border: 1px solid #FF8000;
+          image{
+            width: 34rpx;
+            height: 34rpx;
+            vertical-align: middle;
+            margin-right: 10rpx;
+            display: inline-block;
+          }
+          text{
+            font-size: 26rpx;
+            color: #ffffff;
+            display: inline-block;
+            width: 170rpx;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+        &.btn_bor_bl{
+          background-color: #ffffff;
+          border: 1px solid #666;
+          text{
+            font-size: 26rpx;
+            color: #666666;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+        &.btn_bor_gr{
+          background-color: #ffffff;
+          border: 1px solid #999999;
+          text{
+            font-size: 26rpx;
+            color: #999999;
+            line-height: 58rpx;
+            vertical-align: top;
+          }
+        }
+
+      }
+    }
+  }
+
+
+</style>

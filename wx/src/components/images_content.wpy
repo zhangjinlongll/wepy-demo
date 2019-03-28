@@ -1,0 +1,133 @@
+<template>
+  <view class="contair">
+    <!--<block wx:for="{{imageList}}" wx:key="this" wx:for-item ='image' wx:for-index ='index'>-->
+      <block wx:if="{{imageList.length == 0}}">
+        <repeat for="{{selectImages}}" key ='index' index="index" item="item">
+          <block wx:if="{{index == selectImages.length-1}}">
+            <image class="image_item" bindtap="selectPhoto" src="{{item}}"></image>
+          </block>
+          <block wx:else>
+            <image class="image_item" bindtap="showPhoto" src="{{item}}" data-list="{{selectImages}}" data-src="{{item}}">
+              <image class="deleteItem" src="../images/imageDelet.png" catchtap="cancelImage" data-list="{{selectImages}}" data-src="{{index}}"></image>
+            </image>
+          </block>
+        </repeat>
+
+      </block>
+      <block wx:else>
+        <repeat for="{{imageList}}" key ='index' index ='index' item="item">
+          <image class="image_item" bindtap="showPhoto" src="{{item}}"></image>
+        </repeat>
+      </block>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import tip from "../utils/tip";
+  export default class images_content extends wepy.component {
+    props = {
+      imageList: {
+        type: Object,
+        default: []
+      }
+    }
+
+    data = {
+      selectImages:["../../images/fujian_holeder.png"],
+      imageNum:1
+    }
+
+    methods = {
+      selectPhoto:function () {
+        var that = this;
+        wx.chooseImage({
+          count: 9, // 默认9
+          sizeType: ['original', 'compressed'], // original 原图，compressed 压缩图，默认二者都有
+          sourceType: ['album', 'camera'], // album 从相册选图，camera 使用相机，默认二者都有
+          success: function(res){
+            var newArr = res.tempFilePaths;
+            if (that.selectImages.length > 9){
+              tip.error('最多只能传9张');
+              return;
+            }
+            if (newArr.length + that.selectImages.length > 10) {
+               var pic = newArr[10- that.selectImages.length];
+               newArr.splice(pic,newArr.length + that.selectImages.length - 10);
+            }
+            that.selectImages = newArr.concat(that.selectImages);
+            that.imageNum += 1;
+            console.log(111111);
+            that.$apply();
+          },
+        })
+      },
+
+      showPhoto:function (event) {
+        var src = event.currentTarget.dataset.src;//获取data-src
+        var imgList = event.currentTarget.dataset.list;//获取data-list
+        //图片预览
+        wx.previewImage({
+          current: src, // 当前显示图片的http链接
+          urls: imgList // 需要预览的图片http链接列表
+        })
+      },
+
+      cancelImage:function (event) {
+        var that = this;
+        var src = event.currentTarget.dataset.src;//获取data-src
+        var imgList = event.currentTarget.dataset.list;//获取data-list
+        imgList.splice(src,1);
+        that.selectImages = imgList;
+        that.$apply();
+      },
+
+
+    }
+
+    onLoad() {
+      console.log('jssjssjsjs')
+      let that = this;
+    }
+
+    watch = {
+     async selectImages(){
+        console.log('ksskssks');
+        let arr = this.selectImages;
+        this.$emit("watchImageList",{
+          imageList:arr,
+        });
+
+      }
+    }
+
+  }
+
+</script>
+
+<style lang="less">
+  .contair {
+    width: 100%;
+    display:flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: -30rpx;
+  }
+
+  .image_item {
+    width:156rpx;
+    height:156rpx;
+    margin-top: 20rpx;
+    margin-left: 20rpx;
+    margin-bottom: 20rpx;
+    display: flex;
+  }
+
+  .deleteItem{
+    width: 36rpx;
+    height: 36rpx;
+    margin-top: 0rpx;
+    margin-right: 0;
+  }
+
+</style>

@@ -1,0 +1,715 @@
+<template>
+  <view wx:if="{{ pageShow }}" class="orderStartPayWrap ">
+    <view class="container">
+      <view class="stepClass">
+        <text class="text"><text>订单支付金额说明：</text>默认为订单预估费用，最终以实际结算为准！</text>
+      </view>
+      <view class="startMoneyItem payingStartMoneyItem" bindtap="showPayMoney">
+        <text class="rightText">待支付金额</text>
+        <image class="arrow" src="../../images/arrow_left.png"></image>
+        <text  class="leftYellowText">¥{{payAmount}}</text>
+      </view>
+
+      <view class="startMoneyItem couponItem"  bindtap="showCouponList">
+        <text class="rightText">优惠券</text>
+        <image class="arrow" src="../../images/arrow_left.png"></image>
+        <!--case 1 初始化及不使用优惠券 -->
+        <text  wx:if="{{ couponNum>0 &&  payAmount>0 && couponInfo.money == 0}}" class="leftYellowText">
+          <text>{{ couponNum }}张</text>可用
+        </text>
+
+        <!--case 2 无可用优惠券 -->
+        <text wx:if="{{ couponNum == 0 }}"  class="leftGrayText">暂无可用</text>
+
+        <!--case 4 待支付金额 == 0 -->
+        <text wx:if="{{ payAmount == 0 && couponInfo.money == 0 && couponNum != 0 }}"  class="leftGrayText">{{ couponNum }}张暂不可用</text>
+
+        <!--case 5 选择优惠券 -->
+        <text wx:if="{{ couponInfo.money > 0  && couponNum != 0 }}"  class="leftYellowText">
+          <text>-¥{{ couponInfo.money }}</text>
+        </text>
+
+      </view>
+
+      <view class="payTypeBox">
+        <view class="rightText">支付方式</view>
+        <view class="lineView2"></view>
+        <block wx:for="{{payType}}" wx:key = 'this' wx:for-item = 'pay_type' wx:for-index = 'pay_index'>
+          <view class="paytype_item" bindtap="selectPayType({{pay_type.index}})">
+            <image class="pay_image" src="{{pay_type.pic}}"></image>
+            <text class="pay_title">{{pay_type.name}}</text>
+            <view class="tip_title" hidden="{{pay_index == 0}}">(上传支付截图)</view>
+            <image class="item_right" src="{{payTypeIndex !=pay_type.index ? '../../images/iconCycle.normal.png':'../../images/iconCycle_selected.png'}}"></image>
+          </view>
+          <view class="lineView"></view>
+        </block>
+      </view>
+      <block wx:if='{{payAmount==0}}'>
+        <view class="bottomViewGray  {{ isIphoneX?'iphoneXClass':'' }} " @tap="messagesAlert">{{submitTitle}}</view>
+      </block>
+      <block wx:elif='{{payAmount>0}}'>
+        <view class="bottomView  {{ isIphoneX?'iphoneXClass':'' }}" bindtap="getPrepayOrder">{{submitTitle}}</view>
+      </block>
+    </view>
+
+    <select_payMoney :isIphoneX.sync="isIphoneX" :hiddenView.sync="hidden" :orderBlance.sync="orderBla"  :totalMoney.sync="totalAmount" :alredyPayAmount.sync="alredyPayAmount"  :alreadyCouponPayAmount.sync="alreadyCouponPayAmount"  :titleName.sync="titleName" @hiddenModel.user="closePayType" @submitClick.user="surePayType"></select_payMoney>
+  </view>
+
+</template>
+
+<script>
+  import wepy from "wepy";
+  import select_payMoney from '../../components/select_paymoney';
+  import tip from "../../utils/tip";
+  import api from "../../api/api";
+  import utils from  "../../utils/util";
+  import { USER_SPECICAL_INFO } from "../../utils/constant";
+
+  let WxNotificationCenter = require("../../libs/WxNotificationCenter.js");
+
+  export default class order_start_pay extends wepy.page{
+    config = {
+      navigationBarTitleText: '订单支付',
+    }
+
+    components = {
+      select_payMoney:select_payMoney,
+    }
+
+    data={
+      pageShow:false,
+      isIphoneX:false,
+      payType:[{"name":"微信支付","pic":"../../images/icon_wx.png","index":"0"},{"name":"支付宝","pic":"../../images/icon_zfb.png","index":"1"},{"name":"银行转账","pic":"../../images/icon_yl.png","index":"2"}],
+      moneyArr:["1000","2000","5000","10000","15000","20000"],
+      hidden:false,//控制支付方式的选择
+      orderCode:'',
+      totalAmount:'',//账单总金额
+      alredyPayAmount:'',//已支付金额
+      alreadyCouponPayAmount:"", // 已优惠金额
+      payAmount:0,// 待支付金额
+      selectPayAmount:'',// 选择金额
+      couponNum:0, // 可用优惠券数量
+      couponInfo:{
+        "couponCode": "", // 优惠券编号
+        "couponName": "", // 优惠券名称
+        "money": 0 // 金额
+      },
+      relPayAmount:0, // 实付金额
+      couponUseAmount:0, // 优惠券抵用金额
+      outTradeNo:'',//支付单号
+      payTypeIndex:'0',//支付类型
+      orderBla:'',
+      titleName:'账单金额', //有结算单的情况下，叫做账单金额。无结算单的情况下叫做预估金额
+      submitTitle:'',
+
+    };
+
+    methods = {
+      showTipModel:function(){
+        wx.showModal({
+          title: '账单金额说明',
+          content: '订单未生成结算单前，账单金额默认为一个月租金。最终请以实际结算为准',
+          showCancel:false,
+          confirmColor:'#FF8000',
+          success: function(res) {
+
+          }
+        })
+      },
+
+      //选择支付的金额
+      showPayMoney:function () {
+        this.hidden = true;
+        this.$apply();
+      },
+
+      closePayType:function () {
+        var that = this;
+        that.hidden = false;
+        that.$apply();
+      },
+
+      surePayType:function (e) {
+        var that = this;
+        that.hidden = false;
+        var selectItem = e.source.$data.selectItem;
+        that.payAmount = selectItem.item;
+        this.relPayAmount = (selectItem.item - this.couponInfo.money)>0?(selectItem.item - this.couponInfo.money):0;
+        this.selectPayAmount = selectItem.item;
+        if (that.payTypeIndex == '0') {
+          that.submitTitle = '微信支付      ¥'+ this.relPayAmount ;
+        }
+        that.$apply();
+      },
+
+      selectPayType:function (e) {
+        console.log(e);
+        this.payTypeIndex=e;
+        if (e == 0){
+          this.submitTitle = '微信支付    ¥'+ this.relPayAmount;
+        }else{
+          this.submitTitle = '上传支付截图';
+        }
+        this.$apply();
+      },
+
+      showCouponList:function () {
+        wx.navigateTo({
+          url: '/pages/order/pay_coupon_list'
+        })
+      },
+
+      messagesAlert(){
+        wx.showModal({
+          content: '待支付金额为0，不可支付',
+          showCancel:false,
+          confirmColor:'#FF8000',
+          success: function(res) {
+          }
+        });
+      }
+    };
+
+    onUnload(){
+      let that = this;
+      WxNotificationCenter.removeNotification("changCoupon", that);
+    }
+
+    async onShow(){
+      tip.loading();
+      await this.getCouponNum();
+      await this.getBillMessage();
+      tip.loaded();
+      this.pageShow = true;
+      this.$apply();
+      console.log('init ----End----')
+    }
+
+    onLoad(options) {
+      let that = this;
+      that.isIphoneX = that.$parent.globalData.isIphoneX;
+      that.orderCode = options.orderCode;
+      WxNotificationCenter.addNotification("changCoupon", that.changCoupon, that);
+      that.$apply();
+    }
+
+    changCoupon(couponInfo){
+      let that = this.observer;
+      if(couponInfo){
+        that.couponInfo = couponInfo;
+      }else{
+        that.couponInfo = {
+          "couponCode": "", // 优惠券编号
+          "couponName": "", // 优惠券名称
+          "money": 0 // 金额
+        }
+      }
+      that.$apply();
+    }
+
+    //获取账单信息
+    async getBillMessage(){
+
+      const  json = await  api.getOrderBillMessage({
+        method:"GET",
+        query:{
+          "orderCode":this.orderCode,
+        },
+      });
+
+      if (json && json.data.errCode == 0) {
+        // this.totalAmount = json.data.data["totalAmount"]?json.data.data["totalAmount"]:'0';
+        // this.totalAmount = json.data.data["estimateCost"]?json.data.data["estimateCost"]:'0';
+        this.totalAmount = json.data.data["b2cEstimateCost"]?json.data.data["b2cEstimateCost"]:'0';
+        this.alredyPayAmount = json.data.data["alreadyPayment"]?json.data.data["alreadyPayment"]:'0';
+        this.alreadyCouponPayAmount = json.data.data["discountAmount"]?json.data.data["discountAmount"]:'0';
+        if(this.selectPayAmount){
+          this.payAmount =  this.selectPayAmount;
+        }else{
+          // this.payAmount =  json.data.data["pendingPayment"]?json.data.data["pendingPayment"]:'0';
+          this.payAmount =  json.data.data["b2cPendingPayment"]?json.data.data["b2cPendingPayment"]:'0';
+        }
+        // this.orderBla = json.data.data["pendingPayment"]?json.data.data["pendingPayment"]:'0';
+        this.orderBla = json.data.data["b2cPendingPayment"]?json.data.data["b2cPendingPayment"]:'0';
+        //如果金额 小于0
+        this.payAmount = this.payAmount>0?this.payAmount:'0';
+        this.orderBla =  this.orderBla>0? this.orderBla:'0';
+        this.relPayAmount = (Number(this.payAmount) - Number(this.couponInfo.money)>0)?utils.accSub(Number(this.payAmount),Number(this.couponInfo.money)):0;
+        if (this.payTypeIndex == '0') {
+          this.submitTitle = '微信支付      ¥'+ this.relPayAmount;
+        }
+        var sourceType = json.data.data["orderAmountSource"];
+        if (sourceType == 2) {
+          this.titleName = '预估费用';
+        }else {
+          this.titleName = '账单金额';
+        }
+
+        this.$apply();
+      }
+      tip.loaded();
+    }
+
+    // 获取优惠券数量
+    async getCouponNum(){
+      let that = this;
+      const  json = await  api.getCouponCount({
+        method:"GET",
+        query:{
+          "vaildFlag":0
+        },
+      });
+      if(json && json.data && json.data.errCode === 0){
+        that.couponNum = json.data.data.count;
+        that.$apply;
+      }
+    }
+
+    //请求支付
+    async getPrepayOrder(){
+      tip.loading();
+      let that = this;
+      var date= new Date();
+      var myDate = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate()+" "+date.getHours()+":"+date.getMinutes();
+      wx.reportAnalytics('pay_start', {
+        order:this.orderCode,
+        amount:this.relPayAmount,
+        create_date: myDate,
+      });
+      //如果是选择的是微信支付的话
+      if(this.payTypeIndex == '0'){ //如果是微信支付的话直接去支付
+        const payMessage = {"orderCode":this.orderCode,"amount":this.relPayAmount,"expEeduction": this.couponUseAmount,"couponCode":this.couponInfo.couponCode};
+        api.znSetStorageSync("payMessage",payMessage);
+
+        if(this.relPayAmount === 0){
+          //微信支付 且 实际支付金额为 0；
+          const json = await api.useCoupon({
+            method:"POST",
+            query:{
+              "orderCode":this.orderCode,
+              "totalFee":this.relPayAmount,
+              "tradeType":"JSAPI",
+              "source":"1",
+              "couponExpands": [
+                {
+                  "deduction": this.couponUseAmount,   //券已使用金额
+                  "couponId": this.couponInfo.couponCode,  //券编号
+                  "money":this.couponInfo.money
+                }
+              ]
+            },
+          });
+          if(json && json.data && json.data.errCode === 0){
+            wx.reportAnalytics('coupon_use', {
+              order_code:this.orderCode,
+              amount: this.couponUseAmount,
+              coupon_id:this.couponInfo.couponCode,
+              order_amount: this.relPayAmount,
+            });
+
+
+
+            wx.navigateTo({
+              url: '/pages/order/order_pay_result?outTradeNo=no&payamount='+this.relPayAmount+"&expEeduction="+this.couponUseAmount,
+              // url: '/pages/order/order_pay_result?outTradeNo=no&payamount='+this.payAmount+"&expEeduction="+this.couponUseAmount,
+              success:function () {
+                that.couponInfo = {
+                  "couponCode": "", // 优惠券编号
+                  "couponName": "", // 优惠券名称
+                  "money": 0 // 金额
+                };
+                that.selectPayAmount = ''
+                that.$apply();
+              }
+            });
+          }
+
+
+        }else{
+          let params = {};
+          if(this.couponInfo.money > 0){
+            params = {
+              "orderCode":this.orderCode,
+              "totalFee":this.relPayAmount,
+              "tradeType":"JSAPI",
+              "source":"1",
+              "couponExpands": [
+                {
+                  "deduction": this.couponUseAmount,   //券已使用金额
+                  "couponId": this.couponInfo.couponCode,  //券编号
+                  "money":this.couponInfo.money
+                }
+              ]
+            };
+          }else{
+            params = {
+              "orderCode":this.orderCode,
+              "totalFee":this.relPayAmount,
+              "tradeType":"JSAPI",
+              "source":"1",
+            };
+          }
+          const json = await api.getPayMessage({
+            method:"POST",
+            query:params,
+          });
+          if (json && json.data && json.data.errCode==0 ) {
+            //获取订单成功
+            this.jumptoPay(json.data.data);
+          }
+        }
+      }else {
+        if(this.payAmount  > 0){
+          let couponInfo = {
+            "deduction": this.couponUseAmount,   //券已使用金额
+            "couponId": this.couponInfo.couponCode,  //券编号
+            "money": this.couponInfo.money
+          };
+          //console.log("跳转上传支付凭证参数",'orderCode='+this.orderCode+'&payMoney='+this.relPayAmount +'&source='+this.payTypeIndex +'&couponInfo='+couponInfo)
+          couponInfo = encodeURIComponent(JSON.stringify(couponInfo));
+          wx.navigateTo({
+            url:'/pages/order/upload_setfile?orderCode='+this.orderCode+'&payMoney='+this.relPayAmount +'&source='+this.payTypeIndex +'&couponInfo='+couponInfo,
+            // url:'/pages/order/upload_setfile?orderCode='+this.orderCode+'&payMoney='+this.payAmount +'&source='+this.payTypeIndex +'&couponInfo='+couponInfo,
+          });
+        }else {
+           tip.error('支付金额不能小于0');
+        }
+      }
+      tip.loaded();
+    }
+
+    //直接去支付
+    async jumptoPay(e){
+      let that = this;
+     // console.log('sssss',e.outTradeNo);
+      api.znSetStorageSync("outTradeNo", e.outTradeNo);
+      this.couponInfo.couponUseAmount = this.couponUseAmount;
+      api.znSetStorageSync("couponInfo",this.couponInfo);
+
+      this.outTradeNo = e.outTradeNo;
+      wx.requestPayment({
+        'timeStamp': e.timeStamp,
+        'nonceStr':e.nonceStr,
+        'package': e._package,
+        'signType': 'MD5',
+        'paySign': e.paySign,
+        'success':function(res){
+          var date= new Date();
+          var myDate = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate()+" "+date.getHours()+":"+date.getMinutes();
+          var payMessage = api.znGetStorageSync("payMessage");
+          var couponInfo = api.znGetStorageSync("couponInfo");
+          wx.reportAnalytics('pay_success', {
+            order:payMessage.orderCode,
+            amount:payMessage.amount,
+            create_date: myDate,
+            outtradeno: api.znGetStorageSync("outTradeNo"),
+          });
+          wx.reportAnalytics('coupon_use', {
+            order_code:payMessage.orderCode,
+            amount:couponInfo.couponUseAmount,
+            coupon_id:couponInfo.couponCode,
+            order_amount: payMessage.amount,
+          });
+        },
+        'fail':function(res){
+          tip.error('支付失败');
+          var payMessage = api.znGetStorageSync("payMessage");
+          wx.reportAnalytics('pay_fail', {
+            order: payMessage.orderCode,
+            amount: payMessage.amount,
+            reason: res.errMsg,
+            outtradeno: api.znGetStorageSync("outTradeNo"),
+          });
+
+        },
+        'complete':function(res){
+          var payMessage = api.znGetStorageSync("payMessage");
+          const outTradeNo = api.znGetStorageSync("outTradeNo");
+          if(res.errMsg == 'requestPayment:ok') {
+            wx.navigateTo({
+              url: '/pages/order/order_pay_result?outTradeNo='+outTradeNo +'&payamount='+payMessage.amount+"&expEeduction="+payMessage.expEeduction,
+              success:function () {
+                that.couponInfo = {
+                  "couponCode": "", // 优惠券编号
+                  "couponName": "", // 优惠券名称
+                  "money": 0 // 金额
+                };
+                that.selectPayAmount = ''
+                that.$apply();
+              }
+            });
+          }
+        }
+      })
+    }
+
+    watch={
+      couponInfo(){
+        if(this.payAmount - this.couponInfo.money>0){
+          this.relPayAmount = this.payAmount - this.couponInfo.money;
+          this.couponUseAmount = this.couponInfo.money;
+        }else{
+          this.relPayAmount = 0;
+          this.couponUseAmount = this.payAmount;
+        }
+        this.$apply();
+      }
+    }
+  }
+</script>
+
+<style lang="less">
+.orderStartPayWrap{
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #efeff4;
+  }
+
+  .stepClass {
+    background-color: #fff5e6;
+    height: 73rpx;
+    width: 100%;
+    display: flex;
+    /*align-items: center;*/
+    flex-direction: column;
+    .text{
+      color:#747474;
+      font-size: 24rpx;
+      margin-left: 15rpx;
+      margin-top: 20rpx;
+      margin-right: 15rpx;
+      text{
+        color: #FF8000;
+        font-weight: 700;
+      }
+
+    }
+
+  }
+
+  .startMoneyItem{
+    margin-top: 20rpx;
+    flex-direction: row;
+    width: 100%;
+    height: 97rpx;
+    background-color: #ffffff;
+
+    &.payingStartMoneyItem{
+      margin-top: 0rpx;
+    }
+  }
+
+  .rightText{
+   margin-left: 15rpx;
+   line-height: 97rpx;
+    font-size: 34rpx;
+    color: #000000;
+  }
+
+  .tipImage {
+    margin-left: 5rpx;
+    margin-top:30rpx;
+    width: 30rpx;
+    height: 30rpx;
+  }
+
+  .leftText {
+    float: right;
+    margin-right: 15rpx;
+    line-height: 97rpx;
+    color: #343434;
+    font-size: 34rpx;
+  }
+
+  .selectMoneyBox{
+    display: flex;
+    margin-top: 30rpx;
+    flex-direction: column;
+    width: 100%;
+    height: 210rpx;
+    align-items: center;
+    background-color: #ffffff;
+  }
+
+  .leftYellowText{
+    float: right;
+    line-height: 97rpx;
+    margin-right: 5rpx;
+    font-size: 34rpx;
+    color: #FF8000;
+  }
+
+  .leftGrayText{
+    float: right;
+    line-height: 97rpx;
+    margin-right: 5rpx;
+    font-size: 34rpx;
+    color: #FF8000;
+  }
+
+  .couponItem{
+    .leftYellowText{
+      color: #989B9E;
+      text{color: #FF8000;}
+    }
+    .leftGrayText{
+      color: #989B9E;
+      text{color: #FF8000;}
+    }
+  }
+
+  .arrow {
+    float: right;
+    margin-top: 36rpx;
+    width: 26rpx;
+    height: 25rpx;
+    margin-right:15rpx;
+  }
+
+  .titleText {
+    line-height: 40rpx;
+    border-radius: 4rpx;
+    width: 130rpx;
+    text-align: center;
+    margin-top: 40rpx;
+    font-size: 26rpx;
+    color: #898989;
+    background-color: #efeff4;
+  }
+
+  .selctMonyItem{
+    margin-top: 15rpx;
+   height: 90rpx;
+   display: flex;
+  }
+
+  .bigMoney{
+    height: 90rpx;
+    color: #FF8000;
+    font-size: 64rpx;
+  }
+
+  .selectBnt{
+    margin-left: 3rpx;
+    width: 26rpx;
+    height: 26rpx;
+  }
+
+  .lineView{
+    margin-left: 15rpx;
+    margin-right: 0rpx;
+    height: 1rpx;
+    background-color:#e5e5e5;
+  }
+
+  .lineView2{
+    margin-left: 0rpx;
+    margin-right: 0rpx;
+    height: 1rpx;
+    background-color:#e5e5e5;
+  }
+
+
+  .payTypeBox {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 463rpx;
+    margin-top: 20rpx;
+    background-color: #ffffff;
+  }
+
+  .paytype_item{
+    flex-direction: row;
+    width: 100%;
+    height: 122rpx;
+    //margin-top: -1prx;
+    align-items: center;
+  }
+
+  .pay_image {
+    float: left;
+    margin-top: 30rpx;
+    top: 18rpx;
+    margin-left: 15rpx;
+    align-self: center;
+    width: 60rpx;
+    height: 60rpx;
+  }
+
+  .pay_title {
+    float: left;
+    margin-left: 20rpx;
+    font-size: 34rpx;
+    color: #000000;
+   line-height: 120rpx;
+  }
+
+  .tip_title {
+    float: left;
+    margin-left: 20rpx;
+    font-size: 30rpx;
+    color: #747474;
+    line-height: 120rpx;
+  }
+
+  .item_right {
+    float: right;
+    margin-right: 15rpx;
+    width: 42rpx;
+    height: 42rpx;
+    margin-top: 39rpx;
+  }
+
+
+  .bottomView {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    font-size: 36rpx;
+    line-height: 98rpx;
+    color: #ffffff;
+    background-color: #FF8000;
+    text-align: center;
+  }
+
+  .bottomViewGray{
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    font-size: 36rpx;
+    line-height: 98rpx;
+    color: #ffffff;
+    background-color: #b2b2b2;
+    text-align: center;
+  }
+
+  .title {
+    margin-left: 15rpx;
+    line-height: 98rpx;
+    font-size: 34rpx;
+    color: #b2b2b2;
+  }
+
+  .money {
+    margin-left: 8rpx;
+    line-height: 98rpx;
+    font-size: 34rpx;
+    color: #FF8000;
+  }
+
+  .pay_bnt {
+    float: right;
+    margin-right: 0rpx;
+    margin-top: 0rpx;
+    background-color: #FF8000;
+    color: white;
+    font-size: 36rpx;
+    width: 260rpx;
+    line-height: 98rpx;
+    text-align: center;
+  }
+}
+</style>

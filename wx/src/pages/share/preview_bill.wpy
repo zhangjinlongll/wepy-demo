@@ -1,0 +1,149 @@
+<template>
+  <view class="preview-bill-wrap" wx:if="{{ pageShow }}">
+      <movable-area scale-area>
+        <movable-view direction="all" scale scale-min="1" scale-max="4" scale-value="1">
+          <image style="height: {{imgHeight}}rpx" src="{{ picUrl }}">
+          </image>
+        </movable-view>
+      </movable-area>
+      <button class="save" @tap="download">保存至本地</button>
+      <view wx:if="{{isIphoneX}}" style="height: 68rpx;width: 750rpx;background-color: #ffffff"></view>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  export default class preview_bill extends wepy.page {
+    config = {
+      navigationBarTitleText: '众能联合设备租赁账单',
+      enablePullDownRefresh: false
+    };
+
+    data = {
+      pageShow: false,
+      picUrl:'', //https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/erpImg/1078912222408871936/1546067693702.png
+      scale:1,
+      imgHeight:'',
+      isIphoneX:false
+    };
+
+    onLoad(option,data) {
+      let that = this;
+      this.set_page_show(true);
+
+      wepy.getImageInfo({
+        src:data.preload.picUrl
+      }).then(res=>{
+        console.log(res);
+        that.$apply(()=>{
+          that.isIphoneX = that.$parent.globalData.isIphoneX;
+          that.imgHeight  = 710 * res.height / res.width;
+          that.picUrl = data.preload.picUrl
+        })
+      })
+    };
+
+    // 设置页面内容显示隐藏
+    set_page_show(show){
+      this.$apply(()=>{
+        this.pageShow = show;
+      });
+    }
+
+
+    methods={
+      download(){
+        wepy.getSetting().then(settingdata=>{
+          if (settingdata.authSetting["scope.writePhotosAlbum"]) {
+            wepy.downloadFile({
+              url: this.picUrl
+            }).then((res)=>{
+              console.log(res);
+              if(res.errMsg == 'downloadFile:ok'){
+                wepy.saveImageToPhotosAlbum({
+                  filePath: res.tempFilePath
+                }).then(saveRes=>{
+                  wx.showToast({
+                    title: '已保存到相册'
+                  })
+                }).catch(err =>{
+                  tip.error("获取权限失败");
+                });
+              }
+            })
+          }else {
+            wepy.downloadFile({
+              url: this.picUrl
+            }).then((res)=>{
+              console.log(res);
+              if(res.errMsg == 'downloadFile:ok'){
+                wepy.saveImageToPhotosAlbum({
+                  filePath: res.tempFilePath
+                }).then(saveRes=>{
+                  wx.showToast({
+                    title: '已保存到相册'
+                  })
+                }).catch(err =>{
+                  tip.error("获取权限失败");
+                });
+              }
+            })
+          }
+        }).catch(err =>{
+          wx.showToast({
+            title: '保存失败，请重试'
+          })
+        });
+
+      }
+    }
+
+  }
+</script>
+<style lang="less">
+  page {
+    background-color: #EFEFF4;
+    height: 100%;
+  }
+
+  .preview-bill-wrap{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    movable-area {
+      flex: 1;
+      width: 100%;
+      background-color: #000;
+      overflow: hidden;
+    }
+
+    movable-view {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 750rpx;
+      margin: 0 auto;
+      height: 1129rpx;
+      color: #fff;
+      image{
+        margin: 0 auto;
+        width: 710rpx;
+      }
+    }
+
+    .save{
+      margin: 0;
+      padding: 0;
+      box-shadow: 0;
+      border: 0rpx solid #FF8000;
+      border-radius:0;
+      width: 750rpx;
+      line-height: 90rpx;
+      text-align: center;
+      background-color: #FF8000;
+      color: #ffffff;
+    }
+  }
+
+</style>

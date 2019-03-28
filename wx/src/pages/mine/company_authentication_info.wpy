@@ -1,0 +1,163 @@
+<template>
+  <view class="personalAuthenticationInfoWrap">
+    <view class="imgBox">
+      <image src="../../images/img_yrz.png"></image>
+      <view>已认证</view>
+    </view>
+
+    <view class="backInfo">
+      <view class="labelItem company">
+        <view class="lableenterpriseName">企业名称</view>
+        <view class="lableValue">
+          <view class="value">{{enterpriseName}}</view>
+        </view>
+      </view>
+      <view class="labelItem">
+        <view class="lableenterpriseName">统一社会信用代码</view>
+        <view class="lableValue">
+          <view class="value">{{ idcardNum }}</view>
+        </view>
+      </view>
+      <view class="labelItem">
+        <view class="lableenterpriseName">法人代表</view>
+        <view class="lableValue">
+          <view class="value">{{ legalPerson }}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</template>
+
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import WxValidate from '../../libs/WxValidate';
+
+    export default class Index extends wepy.page {
+    config = {
+      navigationBarTitleText: '企业认证信息',
+    };
+
+    data = {
+      enterpriseName:"",
+      idcardNum:"",
+      legalPerson:""
+    };
+
+    async onLoad() {
+     await this.init();
+      let that = this;
+    }
+
+    async onUnload(option) {
+      let pages = getCurrentPages();//当前页面
+      let prevPage = pages[pages.length-2];//上一页面
+      if(pages.length-2 != 0){
+        wx.navigateBack({
+          delta: 1
+        });
+      }
+    }
+
+    async onShow() {
+
+    }
+
+    // 页面初始化
+    async init() {
+      let that = this;
+      // 请求个人信息 接口 获取 认证信息状态
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode == 0){
+        that.enterpriseName = result.data.data.enterpriseName;
+        that.idcardNum = result.data.data.enterpriseId;
+        that.legalPerson = result.data.data.legalPerson;
+        that.$apply();
+      }
+    }
+
+    // 从哪个页面来的
+    async fromUrl() {
+
+    }
+
+    methods = {
+
+    }
+  }
+
+</script>
+<style lang="less">
+.personalAuthenticationInfoWrap{
+  .imgBox{
+    background-color: #ffffff;
+    padding: 50rpx 0 94rpx;
+    text-align: center;
+    image{
+      margin-left: -20rpx;
+      width: 230rpx;
+      height: 178rpx;
+    }
+    view{
+      text-align: center;
+      font-size: 36rpx;
+      color: #000;
+    }
+  }
+  .backInfo{
+    margin-top: 20rpx;
+    background-color: #fff;
+  }
+  .labelItem {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 0 20rpx;
+    border-bottom: 1px solid #E5E5E5;
+
+    &:last-child{
+      border-bottom: 0;
+    }
+  }
+  .lableenterpriseName {
+    width: 280rpx;
+    line-height: 48rpx;
+    color: #000;
+    font-size: 34rpx;
+    padding: 20rpx 0;
+  }
+  .company .lableenterpriseName{
+    width: 140rpx;
+  }
+  .lableValue {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+    text-align: right;
+    line-height: 48rpx;
+    color: #000;
+    font-size: 34rpx;
+    margin-left: 20rpx;
+    position: relative;
+    .value {
+      flex: 1;
+      color: #000;
+      padding: 20rpx 20rpx 20rpx 0;
+      font-size: 34rpx;
+      line-height: 48rpx;
+      /*//min-height: 48rpx;*/
+    }
+    .placeholder {
+      font-size: 34rpx;
+      color: #B2B2B2;
+      line-height: 48rpx;
+      margin-left: 2rpx;
+    }
+  }
+}
+</style>

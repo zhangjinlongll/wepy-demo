@@ -1,0 +1,1004 @@
+<template>
+  <view class="container {{ isIphoneX?'iphoneXClass':'' }}" wx:if="{{ pageShow }}">
+    <swiper class="swiper" indicator-active-color="{{carouselParams.indicatorActiveColor}}" indicator-dots="{{carouselParams.indicatorDots}}" autoplay="{{carouselParams.autoplay}}" interval="{{carouselParams.interval}}" duration="{{carouselParams.duration}}" circular="{{ carouselParams.circular }}" bindchange="changCurrent">
+      <block wx:for="{{infoData.imgs}}" wx:key="key" wx:for-index="index" wx:for-item="item">
+        <swiper-item >
+          <image src="{{item?item:'../../images/img_zwt.png'}}" mode="aspectFit" class="slide-image"  data-err-img="infoData.imgs[{{ index }}]" binderror="onImageError"/>
+        </swiper-item>
+      </block>
+    </swiper>
+
+    <!--<imahe class="back" style="position: absolute; top: 20rpx;left: 20rpx;">-->
+      <!---->
+    <!--</imahe>-->
+
+    <navigator url="/pages/main/home" open-type="switchTab" hover-class="other-navigator-hover" wx:if="{{ isFromShare }}" style="position: absolute; width: 50rpx;height: 50rpx;padding: 20rpx 20rpx 20rpx 10rpx;top: 0;left: 0;">
+      <image src="../../images/icon_fh.png" style="position: absolute; width: 50rpx;height: 50rpx;padding: 20rpx 20rpx 20rpx 10rpx;top: 0;left: 0;" />
+    </navigator>
+
+<!--<!-<>-&ndash;&gt;-->
+    <view class="info">
+      <view class="name">{{infoData.meter}}米 {{infoData.categoryName}}</view>
+
+      <view class="productInfos">
+      	<view class="productInfosBox">
+    			<view class="price">￥{{infoData.promMonthPrice}}/月</view>
+          <view class="price2">￥{{infoData.promDayPrice}}/天 </view>
+    			<view class="adress" wx:if="{{infoData.promotion == 1?true:false}}">{{infoData.discountDesc}}</view>
+          <!--<view class="buy numChangBox" >-->
+            <!--<image class="reduce" @tap.stop="reduceNum" src="../../images/icon_js.png"></image>-->
+            <!--<input type="number"  value="{{ infoData.num?infoData.num:0 }}" @tap.stop="" @input="inputNum" />-->
+            <!--<image class="plus" @tap.stop="plusNum" src="../../images/icon_zj.png"></image>-->
+          <!--</view>-->
+      	</view>
+        <view class="oldPrice" wx:if="{{infoData.promotion == 1?true:false}}"><text space="nbsp">原价￥{{infoData.orgMonthPrice}}/月     ￥{{infoData.orgDayPrice}}/天</text></view>
+        <view class="active">
+          <view class="loca">{{infoData.cityName}}</view>
+          <view class="actDate" wx:if="{{infoData.promotion == 1?true:false}}">活动时间： 截止至{{infoData.promDeadline}}</view>
+        </view>
+
+        <image src="../../images/icon_kf.png" class="post" @tap="contactUs" />
+      </view>
+
+			<view class="productAttrBox">
+				<view class="productAttr" wx:for="{{ infoData.attrs }}" wx:key="key">
+	        <view class="attrItem" >
+	        	<view class="attrName">{{ item.name }}</view>
+	        	<view class="attrValue">{{ item.value }}</view>
+	        </view>
+	    	</view>
+			</view>
+    </view>
+
+    <!--<view class="placeOrder" loading="{{isActive}}" disabled="{{isActive}}" @tap="placeOrder({{ id }})">立即下单</view>-->
+    <!--&lt;!&ndash;暂无数据显示&ndash;&gt;-->
+
+    <!--客服-->
+    <!--<image src="../../images/icon_kf.png"  class="post" @tap="contactUs"/>-->
+    <!--客服-->
+
+
+
+    <view class="shoppingBox" wx:if="{{ shoppingBoxShow }}">
+      <view class="shoppingCarsWrap" >
+        <view class="mask" @tap="hideShoppingMore"></view>
+        <view class="shoppingCarsBox">
+          <view class="shoppingCarsContent"  hidden="{{ shoppingBox.hideModal }}">
+            <view class="shoppingCarsHead">
+              <view class="text-l">请选择设备数量</view>
+              <view class="text-r" @tap="clear">
+                <image class="clearCars" src="../../images/icon_qk.png"></image>
+                <text>清空</text>
+              </view>
+            </view>
+            <view class="shoppingCarsBody">
+
+              <view class="product_list">
+                <view class="item" wx:for="{{shoppingBox.productList}}" wx:key="productListPro" wx:for-index="index" wx:for-item="item">
+                  <image class="img" mode="aspectFill" src="{{ item.file || '../images/zwt.png' }}"></image>
+                  <view class="info">
+                    <view class="name">
+                      <text>{{ item.meter.name }} {{ item.category.name }}</text>
+                      <text class="discountDesc" wx:if="{{item.isSale == 1}}">{{ item.discountDesc }}</text>
+                    </view>
+                    <!--<view  wx:for="{{item.attrValList}}" wx:key="item">{{item.attrVal}} </view>-->
+                    <view class="attribute">{{ item.attrs[0].name }}{{ item.attrs[0].value }} / {{ item.attrs[1].name }}{{ item.attrs[1].value }}</view>
+
+                    <view class="bottom">
+
+                      <view class="priceTotal">
+                        <view class="price">￥<text>{{ item.promMonthPrice }}</text> /月</view>
+                        <view class="price2">￥<text>{{ item.promDayPrice }}</text>/天</view>
+                      </view>
+
+                      <view class="buy numChangBox" >
+                        <image style="{{ item.num && item.num>0 ? '' : 'visibility:hidden' }}" class="reduce" @tap.stop="reduceNumSelf({{index}})" src="../../images/icon_js.png"></image>
+                        <!--<text style="{{ item.num && item.num>0 ? '' : 'visibility:hidden' }}">{{ item.num?item.num:0 }}</text>-->
+                        <input style="{{ item.num && item.num>0 ? '' : 'visibility:hidden' }}" type="number"  value="{{ item.num?item.num:0 }}" @tap.stop="" @input="inputNumSelf" />
+                        <image class="plus" @tap.stop="plusNumSelf({{index}})" src="../../images/icon_zj.png"></image>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+              </view>
+
+            </view>
+          </view>
+          <view class="shoppingCarsBtn {{ isIphoneX?'iphoneXClass':'' }}" >
+            <!--<view class="shoppingCarsInfo" >-->
+              <!--<image src="../../images/icon_gwc.png" class="shoppingCarsIcon"></image>-->
+              <!--<view class="shoppingCarsTotal">当前设备已选<text>{{shoppingBox.productList[0].num}}</text>台</view>-->
+            <!--</view>-->
+            <button class="pay_button" @tap.stop="sureHideModal" style="width: 100%">确定选择</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!--<image src="../../images/icon_kf.png" class="post" @tap="contactUs" />-->
+    <contactus_screen :hiddenView.sync="hiddenContact" class="contact" @hiddenModel.user="closePayType"></contactus_screen>
+    <Shopping_cars :isHasSelf.sync="isHasSelf" :isIphoneX.sync="isIphoneX"  :total.sync = "shoppingCarsTotal" :show.sync="showShopping" :list.sync="shoppingCarsList"  @numChange.user = 'onNumChange' @otherPlusNum.user="plusNumCars" @placeOrder.user="placeOrderBtn"></Shopping_cars>
+  </view>
+</template>
+<script>
+import wepy from 'wepy';
+import api from '../../api/api';
+import tip from '../../utils/tip';
+import {SHOPPING_CARS,USER_SPECICAL_INFO} from '../../utils/constant'
+import Contact_screen from "../../components/contactus_screen"//选择客服方式
+import Shopping_cars from "../../components/shoppingCars"; //购物车
+var mta= require('../../libs/mta_analysis.js');
+
+export default class product_detail extends wepy.page {
+
+//分享
+  onShareAppMessage() {
+    console.log(11111);
+    //TODO gei openid
+    let userSpecicalInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+    this.$parent.setEventsLogs({
+      event_id:'share_page',
+      params:{
+        current_openId:userSpecicalInfo.userInfo.openId,
+        url:"/pages/main/product_detail?shigh=" +this.shigh+ "&category=" +this.category+ "&id=" +this.id+"&isShare=true&sharedOpenId="+userSpecicalInfo.userInfo.openId
+      }
+    });
+    return {
+      title: '众能联合',
+      desc: '推荐一个高空升降车租赁给你',
+      path: "/pages/main/product_detail?shigh=" +this.shigh+ "&category=" +this.category+ "&id=" +this.id+"&isShare=true&sharedOpenId="+userSpecicalInfo.userInfo.openId
+    }
+  }
+
+  config = {
+    navigationBarTitleText: '设备详情',
+  }
+
+  components = {
+    contactus_screen:Contact_screen,
+  Shopping_cars:Shopping_cars
+
+  }
+
+  data = {
+
+    shoppingBoxShow:false,
+    shoppingBox:{
+      hideModal:false,
+      total:false,
+      productList:[]
+    },
+
+
+    isFromShare:false,
+    pageShow:false,
+    isIphoneX:false,
+    shoppingCarsTotal:0,
+    shoppingCarsList:[],
+    showShopping:true,
+    hiddenContact:false,//是否展示客服方式
+    shigh:'',
+    category:'',
+  	isActive:false,
+  	carouselParams:{
+  		indicatorDots: false,
+  		indicatorActiveColor: "#fff",
+  		autoplay: true,
+  		interval: 2500,
+  		duration: 500,
+  		circular:true,
+  		current:0
+  	},
+  	id:'',
+  	infoData:{
+      num:0, //数量
+  		imgs:[],
+  		categoryName:"",//直臂式
+  		cityCode:"",
+  		cityName:"",
+  		meter:"",
+  		orgDayPrice:"",
+  		orgMonthPrice:"",
+  		promDayPrice:"",
+      promotion:null,
+      discount:'',
+      discountDesc:'',
+  		promMonthPrice:"",
+  		attrs:[ // 产品属性
+	      {
+	        "name": "",//平台高度
+	        "value": ""//18.36m
+	      },
+	      {
+	        "name": "",//平台延伸
+	        "value": ""//0m
+	      },
+	      {
+	        "name": "",//平台尺寸
+	        "value": ""//0.91×2.44m
+	      },
+	      {
+	        "name": "",//平台载重能力
+	        "value": ""//227kg
+	      },
+	      {
+	        "name": "",//自重
+	        "value": ""//9718kg
+	      },
+	      {
+	        "name": "",//机器(长宽高)
+	        "value": ""//m
+	      }
+	    ]
+  	},
+    isHasSelf:false
+  }
+
+	async getDetailData(shigh,category){
+		let that = this;
+		let shoppingCars = api.znGetStorageSync(SHOPPING_CARS);
+		let json = await api.getProductInfo({
+			query:{
+				shigh:shigh, //米数
+				category:category//FORK分类 STRAIGHT
+			}
+		});
+    const obj = api.znGetStorageSync(SHOPPING_CARS);
+    this.shoppingCarsTotal = obj.shoppingCarsTotal || 0;
+    this.shoppingCarsList = obj.shoppingCarsList || [];
+		if(json && json.data.errCode == 0){
+			that.infoData = json.data.data;
+      that.infoData.num = 0;
+        this.shoppingCarsList.forEach(item=>{
+        if(item.priceCode == that.infoData.priceCode){
+          that.infoData.num = item.num || 0;
+        }
+      })
+
+			that.infoData.imgs = that.infoData.imgs?that.infoData.imgs:[]
+		}
+		that.$apply();
+	}
+
+  changCurrent(e){
+  	this.carouselParams.current = e.detail.current ;
+  	this.$apply();
+  }
+
+  async onLoad(option) {
+  	let that = this;
+    console.log('进入设备详情页--onload')
+    if(option && option.isShare){
+      that.isFromShare = option.isShare;
+      that.$parent.getCustMangerCode(option.sharedOpenId);
+      that.$parent.setEventsLogs({
+        event_id:'enter_from_share',
+        params:{
+          other_openId:option.sharedOpenId,
+          url:"/pages/main/product_detail?shigh=" +this.shigh+ "&category=" +this.category+ "&id=" +this.id+"&isShare=true&sharedOpenId="+option.sharedOpenId
+        }
+      });
+      that.$apply();
+    }
+
+    var pages = getCurrentPages();    //获取加载的页面
+    var currentPage = pages[pages.length - 1];   //获取当前页面的对象
+    var url = currentPage.route;   //当前页面url
+    var options = option?JSON.stringify(option):'';
+    if(pages.length - 1>0){
+      that.$parent.setReferrerLogs( pages[pages.length - 2]);
+    }else{
+      that.$parent.setReferrerLogs('null');
+    }
+    that.$parent.setEnterPageLogs();
+    that.$parent.setLeavePageLogs();
+    that.$parent.setPageTitleLogs(option.shigh + option.category + '设备详情');
+    that.$parent.setUrlLogs(url+'_option_'+options);
+
+    that.isIphoneX = that.$parent.globalData.isIphoneX;
+  	tip.loading();
+
+    if(option.id){
+    	that.id = option.priceCode;
+    }
+    if(option.shigh && option.category){
+    	that.shigh = option.shigh;
+    	that.category = option.category;
+    }
+
+    this.$parent.isCanLogin();
+    that.getDetailData(that.shigh,that.category);
+
+    tip.loaded();
+    this.pageShow = true;
+    this.$apply();
+  }
+
+  onUnload(){
+    let that = this;
+    that.$parent.setLeavePageLogs();
+    that.$parent.sendLogs();
+    console.log('离开产品详情页')
+  }
+
+	onShow(){
+		let that = this;
+		this.isActive = false;
+	}
+
+	computed = {}
+
+  methods = {
+  	 //
+    onImageError: function(ev){
+      let that = this;
+      var _errImg=ev.target.dataset.errImg;
+      var _errObj={};
+      _errObj[_errImg]="../../images/img_zwt.png";
+      console.log( ev.detail.errMsg+"----" + "----" +_errImg );
+      that.setData(_errObj);
+    },
+    // 客服
+    contactUs() {
+      // wx.makePhoneCall({
+      //   phoneNumber: '400-805-8558'
+      // })
+
+      this.$parent.setEventsLogs({
+        event_id:'detail_customer_service',
+        params:{
+        }
+      });
+
+      this.hiddenContact = true;
+      this.$apply();
+    },
+
+    closePayType:function () {
+
+      var that = this;
+
+      this.$parent.setEventsLogs({
+        event_id:'detail_customer_cancel',
+        params:{}
+      });
+
+      that.hiddenContact = false;
+      that.$apply();
+    },
+
+    share(){
+      this.onShareAppMessage();
+    },
+
+
+    placeOrder(id){
+    	this.isActive = true;
+    	this.$apply();
+
+    	this.$parent.needBindPhone(function(){
+    		wx.navigateTo({
+	      	url: "/pages/order/place_order?id="+priceCode
+	    	});
+    	}, "/pages/order/place_order?id="+priceCode)
+    },
+
+    // 监听购车数量变化
+    onNumChange(total,list){
+      console.log('homeNum',total,list);
+      this.shoppingCarsTotal = total;
+      this.shoppingCarsList = list;
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:total,shoppingCarsList:list});
+      let has =false
+      list.forEach(item=>{
+        if(item.priceCode == this.infoData.priceCode){
+          this.infoData.num = item.num;
+          has = true
+        }
+      });
+      if(!has){
+        this.infoData.num = 0
+      }
+
+      this.$apply();
+    },
+
+    // 加法
+    plusNum(){
+      if(!this.infoData.num){
+        this.infoData.num = 0
+      }
+      this.infoData.num ++;
+      this.shoppingCarsTotal ++;
+      let hasSelf = false;
+      this.shoppingCarsList.forEach(item=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          item.num = this.infoData.num;
+          hasSelf = true;
+        }
+      });
+
+      if(!hasSelf){
+        let atrrsNum =  this.infoData.attrs.length -1;
+        this.shoppingCarsList.push({
+          "meter": {"name": this.infoData.meter+"米", "value": this.infoData.meter},
+          "category": {"name": this.infoData.categoryName, "value": this.category},
+          "attrs": [{"name": "宽", "value": (this.infoData.attrs[atrrsNum].value.split('x')[1] ?this.infoData.attrs[atrrsNum].value.split('x')[1]:this.infoData.attrs[atrrsNum].value.split('×')[1]) + 'm' }, {"name": "载重", "value": this.infoData.attrs[3].value }],
+          "promDayPrice": this.infoData.promDayPrice,
+          "promMonthPrice": this.infoData.promMonthPrice,
+          "file": this.infoData.file,
+          "cityCode":  this.infoData.cityCode,
+          "discount": this.infoData.discount,
+          "discountDesc": this.infoData.discountDesc,
+          "isSale": this.infoData.promotion,
+          "priceCode": this.infoData.priceCode,
+          "num":1,
+        });
+      }
+      this.shoppingCarsList = this.shoppingCarsList.sort(function (a,b) {
+        return a.meter.value - b.meter.value
+      })
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:this.shoppingCarsTotal,shoppingCarsList:this.shoppingCarsList})
+      this.$apply();
+    },
+
+    // 减法
+    reduceNum(){
+      if(this.infoData.num == 0) return false
+      this.infoData.num --;
+
+      this.shoppingCarsTotal --;
+      this.shoppingCarsList.forEach((item,index)=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          item.num = this.infoData.num;
+        }
+        if(item.num  == 0){
+          this.shoppingCarsList.splice(index,1);
+        }
+      });
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:this.shoppingCarsTotal,shoppingCarsList:this.shoppingCarsList})
+      this.$apply();
+    },
+
+    // 输入
+    inputNum(e){
+      if(Number(e.detail.value)>99 && e) {
+        this.infoData.num = e.detail.value = '99'
+      }else{
+        this.infoData.num = Number(e.detail.value).toString();
+      }
+
+      let hasSelf = false;
+      let sum = 0;
+      this.shoppingCarsList.forEach((item,index)=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          item.num = this.infoData.num;
+          hasSelf = true;
+        }
+        if(item.num  == 0){
+          this.shoppingCarsList.splice(index,1);
+        }
+      });
+
+      if(!hasSelf){
+        let atrrsNum =  this.infoData.attrs.length -1;
+        this.shoppingCarsList.push({
+          "meter": {"name": this.infoData.meter+"米", "value": this.infoData.meter},
+          "category": {"name": this.infoData.categoryName, "value": this.category},
+          "attrs": [{"name": "宽", "value": (this.infoData.attrs[atrrsNum].value.split('x')[1] ?this.infoData.attrs[atrrsNum].value.split('x')[1]:this.infoData.attrs[atrrsNum].value.split('×')[1]) + 'm' }, {"name": "载重", "value": this.infoData.attrs[3].value }],
+          "promDayPrice": this.infoData.promDayPrice,
+          "promMonthPrice": this.infoData.promMonthPrice,
+          "file": "https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com//PRODUCT/ALOFTWORK/FORK/R6.png",
+          "cityCode":  this.infoData.cityCode,
+          "discount": this.infoData.discount,
+          "discountDesc": this.infoData.discountDesc,
+          "isSale": this.infoData.promotion,
+          "priceCode": this.infoData.priceCode,
+          "num":Number(this.infoData.num),
+        });
+      }
+      this.shoppingCarsList = this.shoppingCarsList.sort(function (a,b) {
+        return a.meter.value - b.meter.value
+      });
+
+      this.shoppingCarsList.forEach((item,index)=>{
+        sum += Number(item.num);
+      });
+
+      this.shoppingCarsTotal = sum;
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:this.shoppingCarsTotal,shoppingCarsList:this.shoppingCarsList})
+      return this.infoData.num;
+    },
+
+    //加入购物车弹窗下 加法
+    plusNumSelf(){
+      this.shoppingBox.productList[0].num ++
+      this.$apply();
+    },
+
+    //加入购物车弹窗下 减法
+    reduceNumSelf(){
+      if(this.shoppingBox.productList[0].num == 0) return false
+      this.shoppingBox.productList[0].num --;
+      this.$apply();
+    },
+
+    //加入购物车弹窗下 输入
+    inputNumSelf(e){
+      if(Number(e.detail.value)>99 && e) {
+        this.shoppingBox.productList[0].num = e.detail.value = '99'
+      }else{
+        this.shoppingBox.productList[0].num = Number(e.detail.value).toString();
+      }
+      return this.shoppingBox.productList[0].num;
+    },
+
+    //加入购物车弹窗下 点击遮罩按钮
+    hideShoppingMore(){
+      this.shoppingBox.productList = [];
+      this.shoppingBoxShow = false;
+      this.$apply();
+    },
+
+    //加入购物车弹窗下 删除按钮
+    clear(){
+      let sum = 0
+      let isHas = false;
+      let proIndex = 0;
+      this.shoppingBox.productList = [];
+
+      this.shoppingCarsList.forEach((item,index)=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          proIndex = index;
+          isHas = true;
+        }
+      });
+
+      if(isHas){
+        this.shoppingCarsList.splice(proIndex,1);
+      }
+
+      this.shoppingCarsList = this.shoppingCarsList.sort(function (a,b) {
+        return a.meter.value - b.meter.value
+      });
+
+      this.shoppingCarsList.forEach((item,index)=>{
+        sum += Number(item.num);
+      });
+
+      this.shoppingCarsTotal = sum;
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:this.shoppingCarsTotal,shoppingCarsList:this.shoppingCarsList})
+
+      this.shoppingBoxShow = false;
+
+      this.$apply();
+    },
+
+    placeOrderBtn(){
+
+      this.$parent.setEventsLogs({
+        event_id:'detail_go_to_order',
+        params:{
+          sel_num: this.infoData.num, //商品的id
+        }
+      });
+
+      let has = false;
+      this.shoppingCarsList.forEach(item=>{
+        if(item.priceCode ==  this.infoData.priceCode && this.shoppingBox.productList.length>0 &&this.shoppingBox.productList[0].num>0){
+          has = true;
+        }
+      });
+
+      if(has){
+        wx.navigateTo({
+          url: "/pages/order/place_order"
+        });
+        return false
+      }
+      this.shoppingBox.productList = [];
+
+      let atrrsNum =  this.infoData.attrs.length -1;
+      this.shoppingBox.productList.push({
+        "meter": {"name": this.infoData.meter+"米", "value": this.infoData.meter},
+        "category": {"name": this.infoData.categoryName, "value": this.category},
+        "attrs": [{"name": "宽", "value": (this.infoData.attrs[atrrsNum].value.split('x')[1] ?this.infoData.attrs[atrrsNum].value.split('x')[1]:this.infoData.attrs[atrrsNum].value.split('×')[1]) + 'm' }, {"name": "载重", "value": this.infoData.attrs[3].value }],
+        "promDayPrice": this.infoData.promDayPrice,
+        "promMonthPrice": this.infoData.promMonthPrice,
+        "file": this.infoData.file,
+        "cityCode":  this.infoData.cityCode,
+        "discount": this.infoData.discount,
+        "discountDesc": this.infoData.discountDesc,
+        "isSale": this.infoData.promotion,
+        "priceCode": this.infoData.priceCode,
+        "num":1,
+      });
+
+
+      let hasSelf = false;
+      let sum = 0;
+
+      this.shoppingCarsList.forEach(item=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          item.num = this.shoppingBox.productList[0].num;
+          hasSelf = true;
+        }
+      });
+
+      if(!hasSelf){
+        this.shoppingCarsList.push(this.shoppingBox.productList[0]);
+      }
+      this.shoppingCarsList = this.shoppingCarsList.sort(function (a,b) {
+        return a.meter.value - b.meter.value
+      });
+
+      this.shoppingCarsList.forEach((item,index)=>{
+        sum += Number(item.num);
+      });
+
+      this.shoppingCarsTotal = sum;
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:this.shoppingCarsTotal,shoppingCarsList:this.shoppingCarsList})
+
+      wx.navigateTo({
+        url: "/pages/order/place_order"
+      });
+    },
+
+    // 监听
+    plusNumCars(){
+
+      this.$parent.setEventsLogs({
+        event_id:'detail_add_shopcart',
+        params:{
+          product_id: this.infoData.priceCode, //商品的id
+          product_name: this.infoData.meter + this.infoData.categoryName, //商品名称
+        }
+      });
+
+      this.shoppingBoxShow = true;
+      if(this.shoppingBox.productList.length>0 && this.shoppingBox.productList[0].num>0){
+        return false
+      }
+      let num =  1;
+      this.shoppingCarsList.forEach(item=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          num = item.num;
+        }
+      });
+
+      let atrrsNum =  this.infoData.attrs.length -1;
+      this.shoppingBox.productList = [];
+      this.shoppingBox.productList.push({
+        "meter": {"name": this.infoData.meter+"米", "value": this.infoData.meter},
+        "category": {"name": this.infoData.categoryName, "value": this.category},
+        "attrs": [{"name": "宽", "value": (this.infoData.attrs[atrrsNum].value.split('x')[1] ?this.infoData.attrs[atrrsNum].value.split('x')[1]:this.infoData.attrs[atrrsNum].value.split('×')[1]) + 'm' }, {"name": "载重", "value": this.infoData.attrs[3].value }],
+        "promDayPrice": this.infoData.promDayPrice,
+        "promMonthPrice": this.infoData.promMonthPrice,
+        "file": this.infoData.file,
+        "cityCode":  this.infoData.cityCode,
+        "discount": this.infoData.discount,
+        "discountDesc": this.infoData.discountDesc,
+        "isSale": this.infoData.promotion,
+        "priceCode": this.infoData.priceCode,
+        "num":num,
+      });
+
+    },
+
+    //加入购物车弹窗下 确认按钮
+    sureHideModal(){
+
+      let hasSelf = false;
+      let sum = 0;
+      this.shoppingCarsList.forEach(item=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          item.num = this.shoppingBox.productList[0].num;
+          this.infoData.num = this.shoppingBox.productList[0].num;
+          hasSelf = true;
+        }
+      });
+
+      if(!hasSelf){
+        this.shoppingCarsList.push(this.shoppingBox.productList[0]);
+      }
+
+      if(this.shoppingBox.productList[0].num == 0){
+        let proIndex = 0;
+        this.shoppingCarsList.forEach((item,index)=>{
+          if(item.priceCode ==  this.infoData.priceCode){
+            proIndex = index;
+          }
+        });
+        this.shoppingCarsList.splice(proIndex,1);
+        this.shoppingBoxShow = false;
+        this.shoppingBox.productList = [];
+      }
+
+      this.shoppingCarsList = this.shoppingCarsList.sort(function (a,b) {
+        return a.meter.value - b.meter.value
+      });
+
+      this.shoppingCarsList.forEach((item,index)=>{
+        sum += Number(item.num);
+      });
+
+      this.shoppingCarsTotal = sum;
+      api.znSetStorageSync(SHOPPING_CARS,{shoppingCarsTotal:this.shoppingCarsTotal,shoppingCarsList:this.shoppingCarsList})
+
+      this.shoppingBoxShow = false;
+      this.$apply();
+    }
+
+  };
+
+  events = {};
+
+  watch = {
+    shoppingCarsTotal(){
+      let ishas = false;
+      this.shoppingCarsList.forEach((item,index)=>{
+        if(item.priceCode ==  this.infoData.priceCode){
+          ishas = true
+        }
+      });
+
+      if(ishas){
+        this.isHasSelf = true;
+      }else{
+        this.isHasSelf = false;
+      }
+      this.$apply();
+    }
+
+  }
+
+}
+
+</script>
+<style lang="less">
+  page {
+    background: #EFEFF4;
+  }
+
+  .container{
+    padding-bottom: 120rpx;
+  }
+
+.swiper {
+  height: 500rpx;
+  background-color: #efeff4;
+}
+.swiperNav{
+	position: absolute;
+	left: 20rpx;
+	top: 240rpx;
+	width: 60rpx;
+	height: 40rpx;
+	line-height: 40rpx;
+	border-radius: 8rpx;
+	background-color: rgba(0, 0, 0, 0.5);
+	text-align: center;
+	color: #FFF;
+}
+.slide-image {
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+}
+.select_city_container {
+  position: absolute;
+  top: 20rpx;
+  felx: 1;
+  background: #fff;
+  border-radius: 0 20rpx 20rpx 0;
+
+  .select_city_content {
+    /*background: rgba(0, 0, 0, 0.1);*/
+    /*border: 1px solid #efefee;*/
+    .select_city {
+      margin: 10rpx;
+      height: 36rpx;
+    }
+  }
+  .message {
+    display: block;
+    text-align: center;
+    margin-left: 20rpx;
+  }
+  .doc {
+    font-size: 16rpx;
+    display: block;
+  }
+}
+
+.info {
+	padding-top:20rpx ;
+
+
+	.productInfos{
+    display: flex;
+    flex-direction: column;
+
+    position: relative;
+    .post{
+      position: absolute;
+      bottom: 60%;
+      margin-bottom: -37rpx;
+    }
+
+	}
+
+	.productInfosBox{
+    flex-direction: row;
+    margin-top: 15rpx;
+    display: flex;
+    overflow: hidden;
+
+	}
+	.name{
+		font-size: 30rpx;
+		color: #333;
+    margin-left: 20rpx;
+	}
+	.price{
+    float: left;
+		font-size:34rpx;
+		color:#FE3F3B;
+    margin-left: 18rpx;
+    float: left;
+	}
+
+  .price2{
+    font-size:34rpx;
+    color:#FE3F3B;
+    margin-left:30rpx;
+    float: left;
+  }
+	.adress{
+		float: left;
+		font-size: 18rpx;
+		color: #ffffff;
+		background: #FF5D5D;
+		border-radius: 4px;
+		width: 64rpx;
+		height: 28rpx;
+		text-align: center;
+		line-height: 28rpx;
+		margin: 11rpx 5rpx;
+    margin-left: 30rpx;
+	}
+	.oldPrice{
+    margin-top: -10rpx;
+		font-size: 24rpx;
+		color: #979797;
+		text-decoration:line-through;
+    margin-left: 20rpx;
+	}
+
+  .buy {
+    width: 156rpx;
+    text-align: center;
+    position: absolute;
+    right: 25rpx;
+    .plus{
+      width: 48rpx;
+      height: 48rpx;
+      vertical-align: top;
+    }
+    text{
+      width: 60rpx;
+      text-align: center;
+      font-size: 32rpx;
+      line-height: 48rpx;
+      height: 48rpx;
+      color: #45474F;
+      vertical-align: top;
+      display:inline-block;
+    }
+    input{
+      width: 60rpx;
+      text-align: center;
+      font-size: 32rpx;
+      line-height: 48rpx;
+      height: 48rpx;
+      color: #45474F;
+      vertical-align: top;
+      display:inline-block;
+    }
+    .reduce{
+      width: 48rpx;
+      height: 48rpx;
+      vertical-align: top;
+    }
+  }
+
+  .active {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 15rpx;
+    margin-top: 20rpx;
+    margin-left: 15rpx;
+  }
+
+  .loca {
+
+    min-width: 44rpx;
+    padding: 0 10rpx;
+    height: 27rpx;
+    font-size: 18rpx;
+    background-color:#ececec;
+    border-radius: 4px;
+    color: #979797;
+    text-align: center;
+  }
+
+  .actDate{
+    margin-left: 10rpx;
+    height: 27rpx;
+    font-size: 20rpx;
+    color: #979797;
+  }
+	.productAttrBox{
+		border-top: 20rpx solid #E6E6E6;
+	}
+	.productAttr{
+		border-top: 1rpx solid #E6E6E6;
+		.attrItem{
+			padding: 20rpx;
+			overflow: hidden;
+		}
+		.attrName{
+			font-size: 34rpx;
+			height: 48rpx;
+			line-height: 48rpx;
+			color: #989B9E;
+			float: left;
+		}
+		.attrValue{
+			font-size: 34rpx;
+			height: 48rpx;
+			line-height: 48rpx;
+			color: #343434;
+			float: right;
+		}
+	}
+
+}
+
+
+.post {
+  float: right;
+  position: fixed;
+  bottom: 280rpx;
+  right: 10px;
+  width: 74rpx;
+  height: 74rpx;
+}
+
+.placeOrder{
+	width: 100%;
+	background-color: #FF8000;
+	position: fixed;
+	bottom: 0;
+	font-size: 36rpx;
+	color: #ffffff;
+	line-height: 98rpx;
+  text-align: center;
+}
+
+ /* .shoppingCarsBox{
+    position: relative;
+    z-index: 2;
+  }*/
+  .shoppingCarsWrap{
+    position: relative;
+    z-index: 1;
+  }
+  .shoppingBox{
+    .shoppingCarsWrap{
+      position: relative;
+      z-index: 2;
+    }
+  }
+</style>

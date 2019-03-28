@@ -1,0 +1,236 @@
+
+<style>
+  .city_box {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  .city_left{
+    flex:1;
+  }
+
+  .loca_title{
+    height: 60rpx;
+    background-color: #efefef;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .loca_text {
+    margin-left: 20rpx;
+    font-size: 28rpx;
+    text-align: center;
+  }
+
+  .loca_city {
+    height: 80rpx;
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    flex-direction: row;
+  }
+
+  .loca_cityText {
+    font-size:32rpx;
+    margin-left:10rpx;
+  }
+
+  .location{
+    margin-left:20rpx;
+    width: 42rpx;
+    height: 42rpx;
+  }
+
+  .cityList {
+
+  }
+
+  .city_right {
+    position: absolute;
+    top: 100rpx;
+    right: 20rpx;
+    padding: 10rpx 0;
+    z-index: 2;
+    background: #ddd;
+    flex-direction:column;
+  }
+
+  .city_content {
+    padding-left: 20rpx;
+    display: flex;
+    background-color: #ffffff;
+    flex-wrap: wrap;
+    align-items: center
+  }
+
+  .city_name {
+    width: 25vw;
+    line-height: 120rpx;
+    font-size: 32rpx;
+    /*text-align: center;*/
+    white-space: nowrap;
+    overflow:hidden;
+  }
+
+  .letter_item {
+    align-self: center;
+    font-size: 26rpx;
+  }
+
+  .city_letter{
+    position: fixed;
+    right: 20rpx;
+    top: 50%;
+  }
+  .city_letter view {
+    font-size: 24rpx;
+    height:36rpx;
+    line-height:36rpx;
+    text-align: center;
+    color: #999999;
+  }
+</style>
+
+<template>
+<view class = 'city_box'>
+  <view class = 'city_left'>
+    <scroll-view style= 'width: 100%;height: {{screenHeight}}px' scroll-y="true" scroll-with-animation="true" scroll-into-view="{{toView}}">
+      <view class='cityList' id="scroll_A">
+
+        <view class = 'loca_title'>
+          <text class = 'loca_text'>当前定位城市</text>
+        </view>
+
+        <view class = 'loca_city'>
+          <image src="../../images/icon_location.png" class="location"></image>
+          <text class='loca_cityText'>{{ cityInfo.cityName?cityInfo.cityName:'无法定位，请选择城市'}}</text>
+        </view>
+
+        <view id="{{letterItem =='scroll_A'?'':'scroll_'+letterItem }}" wx:for='{{letter}}' wx:key='*this' wx:for-item='letterItem' wx:for-index='letterIndex'>
+          <view class='loca_title'>
+            <text class="loca_text">{{letterItem}}</text>
+          </view>
+          <view class='city_content'>
+            <block wx:for="{{cityList[letterItem]}}" wx:for-item="cityItem" wx:for-index='cityIndex' wx:key="*cityListthis">
+              <text class='city_name' bindtap="cityTap({{cityItem}})">{{cityItem.regionName}}</text>
+            </block>
+          </view>
+        </view>
+
+      </view>
+    </scroll-view>
+
+    <view class="city_letter" style="margin-top: -{{ letter.length * 36 / 2 }}rpx">
+      <view wx:for='{{letter}}' wx:key='letter*this' wx:for-item='letterItem' wx:for-index='letterIndex' @tap="scrollToView({{'scroll_'+letterItem}})">{{letterItem}}</view>
+    </view>
+
+  </view>
+
+</view>
+
+</template>
+
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import {
+    NOTIFI_CITY_CHANGE,
+    NOTIFI_ORDER_CITY_CHANGE
+  } from "../../utils/notif_const";
+  import {USER_CITY} from '../../utils/constant'
+  var app = getApp();
+  var WxNotificationCenter = require("../../libs/WxNotificationCenter.js");
+
+  export default class Index extends wepy.page {
+    config = {
+      navigationBarTitleText: '选择城市',
+    }
+
+    components = {}
+
+    data = {
+      letter: [],
+      cityList:{},
+      cityInfo:{
+      	cityName:"",
+      	cityCode:''
+      },
+      fromOrder:false,
+      toView:'scroll_A',
+      scrollTop:0,
+      screenHeight:0,
+    }
+
+    onLoad(option) {
+      let that = this;
+      that.screenHeight = that.$parent.globalData.screenH;
+      if(option && option.city =='no'){
+      	that.cityInfo = {
+      		cityName:"",
+      		cityCode:''
+      	}
+      }else if(option && option.cityType =='1'){
+        this.fromOrder = true;
+        that.cityInfo = {
+          cityName:option.cityName || '',
+        }
+      }else{
+      	that.cityInfo = {
+      		cityName:option.cityName || '',
+      		cityCode:option.cityCode || ''
+      	}
+      }
+    }
+
+    onShow() {
+      let that = this;
+      that.getCityList();
+    }
+
+    computed = {}
+    methods = {
+      cityTap: function(res) {
+//         let cityInfo = api.znGetStorageSync(USER_CITY);
+//         cityInfo.isInService = true;
+//         api.znSetStorageSync(USER_CITY, cityInfo);
+        if(!this.fromOrder){
+          WxNotificationCenter.postNotificationName(NOTIFI_CITY_CHANGE, res);
+        }else{
+          WxNotificationCenter.postNotificationName(NOTIFI_ORDER_CITY_CHANGE, res);
+        }
+        wx.navigateBack();
+
+      },
+      scrollToView(letter){
+        this.$apply(()=>{
+          this.toView = letter;
+          console.log(this.toView);
+        })
+      }
+    }
+
+    async getCityList(){
+      var requestJson = {};
+      var that = this;
+      const json = await api.getCityList({
+
+      });
+      if (json){
+        requestJson= json.data.data;
+        var keys = [];
+        for (var key in requestJson) {
+          if (requestJson.hasOwnProperty(key))
+            keys.push(key);
+        }
+        that.letter = keys;
+        that.cityList= json.data.data;
+        that.$apply();
+      }
+    }
+
+  }
+</script>
+

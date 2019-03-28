@@ -1,0 +1,364 @@
+<!--绑定手机-->
+<template>
+	<form bindsubmit="formSubmit" report-submit="true">
+		<view class="section loginImgBox">
+			<image class="loginLogo" src="../../images/img-logo.png"></image>
+		</view>
+		<view class="section">
+			<input name="phone" type="number" value="{{phone}}" bindinput="phoneInput" placeholder="输入手机号码" maxlength="11" focus="true" />
+		</view>
+		<view class="section codeBox">
+			<input class="code" name="code" type="number" placeholder="短信验证码" bindinput='codeInput' value="{{code}}" />
+			<view class="{{!isCanSend?'btn send_code':'btn send_code active'}}">
+				<text wx:if="{{sendMsgDisabled}}">{{time+'秒后获取'}}</text>
+				<text @tap="sendCode" wx:else>发送验证码</text>
+			</view>
+		</view>
+		<view class="btn_comfire">
+			<button class="button loginSubmit" formType="submit">登   录</button>
+		</view>
+	</form>
+  <!--促销券-->
+  <bomb_screen :show.sync="isShowCouponPop" :types.sync="isOldUserOrNewUser" @close.user="couponPopCloseCb" @sure.user="couponPopSureCb"></bomb_screen>
+</template>
+<script>
+	import wepy from 'wepy';
+	import api from '../../api/api';
+	import tip from '../../utils/tip';
+  import Bomb_screen from "../../components/bomb_screen"; // 促销券弹窗
+	import {
+		USER_SPECICAL_INFO,
+		USER_PHONE
+	} from '../../utils/constant';
+
+	export default class Login extends wepy.page {
+		config = {
+			navigationBarTitleText: '登录',
+			navigationBarTextStyle: 'black',
+			navigationBarBackgroundColor: '#FFFFFF'
+		};
+
+		components = {
+      bomb_screen:Bomb_screen
+    };
+
+		data = {
+			phone: "",
+			code: "",
+			sendMsgDisabled: false,
+			time: 60,
+			isActive: true,
+			isCanSend: false,
+			fromUrl:'', //入口url
+      isShowCouponPop:false, // 是否展示新用户注册券弹窗
+      isOldUserOrNewUser:"0", // 是否是新用户还是老用户首次登陆 0：新用户， 1：老用户
+      interval:null,
+		};
+
+		async sendVerifyCode() {
+			let that = this;
+
+			const json = await api.buildCode({
+				method: "POST",
+				query: {
+					phoneNum: this.phone,
+          kaptchaLen: 4
+				}
+			});
+			if(json && json.data.errCode == 0) {
+				tip.success("发送成功!");
+				that.$apply();
+			} else {
+				this.code = "";
+				this.time = 60;
+				this.isCanSend = true;
+				this.sendMsgDisabled = false;
+				that.$apply();
+				// tip.error(json.data.message)
+			}
+		}
+
+		async registerUser(phone, code,formId) {
+
+			let that = this;
+			tip.loading('正在提交..');
+			const json = await api.buildPhone({
+				method: "POST",
+				query: {
+					phoneNum: this.phone,
+					bindType: 1,
+					verifCode: this.code,
+          cpsFlag:"0"
+				}
+			});
+			if(json && json.data.errCode == 0) {
+
+        let result  = await api.getUserInfo({});
+        if(result && result.data && result.data.errCode == 0){
+          let userInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+          userInfo.userInfo.phoneNum = that.phone;
+          userInfo.userInfo.isActive = 1;
+          userInfo.userInfo.userId = result.data.data.userId;
+
+          if(that.$parent.globalData.registerCoupon){
+            userInfo.promInfo = {
+              showCoupon:"0"
+            };
+          }
+          api.znSetStorageSync(USER_SPECICAL_INFO,userInfo);
+          api.znSetStorageSync(USER_PHONE,userInfo.userInfo.phoneNum);
+
+          if(that.$parent.globalData.registerCoupon) {
+            that.judgeCouponPop();
+          }else{
+            that.goAndBack();
+          }
+
+          if(formId){
+            that.$parent.msgNotification(formId)
+          }
+        }
+				that.$apply();
+				tip.success('手机绑定成功');
+
+			} else if(json.data.errCode == 1011){
+				this.code = "";
+				this.time = 60;
+				this.isCanSend = true;
+				this.sendMsgDisabled = false;
+				that.$apply();
+			}
+
+
+		}
+
+		//判断入口，结束后返回
+    goAndBack(){
+      let that = this;
+
+      if(that.fromUrl){
+        that.fromUrl = decodeURIComponent(that.fromUrl);
+        if(that.$parent.globalData.registerCoupon){
+          let SessionInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+          if(SessionInfo.promInfo){
+            SessionInfo.promInfo.showCoupon = "1";
+          }
+          api.znSetStorageSync(USER_SPECICAL_INFO,SessionInfo);
+        }
+
+        if(that.fromUrl && that.fromUrl.indexOf('/pages/share/share_bill?code=')>-1){
+          wx.reLaunch({
+            url: that.fromUrl
+          });
+        }else{
+          wx.redirectTo({
+            url: that.fromUrl,
+            success:(res)=>{
+              console.log(res);
+              console.log("login -- from",that.fromUrl);
+              console.log("login -- to",that.fromUrl);
+            },
+            fail:(err)=>{
+              console.log(err);
+              wx.switchTab({
+                url:that.fromUrl,
+                success:()=>{
+                  console.log("login -- from",that.fromUrl);
+                  console.log("login -- to",that.fromUrl);
+                },
+                fail:()=>{
+                  console.log("login -- from",that.fromUrl);
+                  wx.switchTab({
+                    url:'pages/main/home',
+                  })
+                }
+              });
+            }
+          });
+        }
+
+      }
+    }
+
+    // 优惠券展示判断
+    judgeCouponPop(){
+      let that = this;
+      const SessionInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+      let isNewUser = SessionInfo.userInfo.isActive == 1; //是否是老用户
+      switch(isNewUser){
+        case true:
+          // 老用户
+          let showCoupon = SessionInfo.promInfo && SessionInfo.promInfo.showCoupon === "0" // 是否显示注册优惠券列表, 0显示, 1不显示
+          that.isOldUserOrNewUser = "1"; // 设置为老用户
+          if(showCoupon){
+            that.isShowCouponPop = true; // 展示新用户注册
+          }else{
+            that.goAndBack();
+          }
+          break;
+        case false:
+          // 新用户
+          that.isOldUserOrNewUser = "0"; // 设置为新用户
+          that.isShowCouponPop = true; // 展示新用户注册
+          break;
+      }
+      that.$apply();
+    };
+
+		onLoad(option) {
+			let that = this;
+			if(option && option.cb){
+				that.fromUrl = option.cb;
+			}
+		}
+
+		watch = {
+			phone() {
+				if(this.phone.length == 11) {
+					this.isCanSend = true;
+				} else {
+					this.isCanSend = false;
+				}
+			}
+		}
+		methods = {
+			codeInput(e) {
+				this.code = e.detail.value;
+			},
+			phoneInput(e) {
+				this.phone = e.detail.value;
+        if(this.interval){
+          clearInterval(this.interval);
+          this.interval = null;
+        }
+			},
+			sendCode(e) {
+				var reg = /^[1][0-9]{10}$/;
+				if(this.phone == "") {
+					tip.alert("输入手机号码");
+					return false;
+				}
+		   	if (!reg.test(this.phone)) {
+		   		tip.alert("输入正确的手机号码");
+			    return false;
+		   	}
+
+				this.isCanSend = false;
+				this.sendVerifyCode();
+				let that = this;
+				that.sendMsgDisabled = true;
+        clearInterval(that.interval);
+        that.time = 60;
+				that.interval = setInterval(() => {
+					if((that.time--) <= 0) {
+						that.time = 60;
+						this.isCanSend = true;
+						that.sendMsgDisabled = false;
+						clearInterval(interval);
+						that.$apply();
+					}
+					that.$apply();
+				}, 1000);
+			},
+			formSubmit(e) {
+				let that = this;
+				let phone = e.detail.value.phone;
+				let code = e.detail.value.code;
+				if(phone == "") {
+					tip.alert("输入手机号码");
+					return false;
+				}
+				if(code == "") {
+					tip.alert("输入验证码");
+					return false;
+				}
+				that.registerUser(phone, code,e.detail.formId);
+			},
+
+      // 优惠券手机绑定成功后回调
+      couponPopSureCb(){
+        let that = this;
+        that.judgeCouponPop();
+        that.$apply();
+      },
+
+      // 优惠券弹窗关闭后回调
+      couponPopCloseCb(){
+        let that = this;
+        that.isShowCouponPop = false;
+        that.goAndBack();
+        that.$apply();
+      }
+		}
+	}
+</script>
+<style lang="less" >
+	page {
+		background:#FFF;
+	}
+
+	.section {
+		display: flex;
+		align-items: center;
+		padding: 60rpx 20rpx 20rpx;
+		margin: 20rpx;
+		border-bottom: 1px solid #dbdbdb;
+		background: #fff;
+		&.loginImgBox {
+			display: block;
+			border-bottom: 0;
+			text-align: center;
+		}
+		&.codeBox {
+			padding: 40rpx 10px 20rpx 10px;
+		}
+		input {
+			flex: 1;
+		}
+		.loginLogo {
+			width: 347rpx;
+			height: 100rpx;
+		}
+		.section_title {
+			color: #1a1a1a;
+			padding-right: 75rpx;
+		}
+		.btn {
+			padding: 10rpx;
+			border: 1px solid #D2D2D2;
+			-moz-border-radius: 5rpx;
+			/* Firefox */
+			-webkit-border-radius: 5rpx;
+			/* Safari 和 Chrome */
+			border-radius: 5rpx;
+			/* Opera 10.5+, 以及使用了IE-CSS3的IE浏览器 */
+			color: #D2D2D2;
+			&.active {
+				background-color: #FEBE0A;
+				color: #333;
+			}
+			&.countdown {
+				color: #333;
+				border-color: #ccc;
+			}
+		}
+		.send_code {
+			margin-left: 40rpx;
+		}
+	}
+
+	.btn_comfire {
+		margin-top: 128rpx;
+		padding: 0 24rpx;
+	}
+
+	.loginSubmit {
+		background-color: #FF8000;
+		border-color: #EC8F00;
+    color: #FFFFFF;
+	}
+
+	.code {
+		width: 300rpx;
+	}
+</style>

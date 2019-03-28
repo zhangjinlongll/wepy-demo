@@ -1,0 +1,337 @@
+<template>
+  <view class="bc">
+    <view class="product_list">
+      <view class="item" wx:for="{{list}}" wx:key="pro" wx:for-index="index" wx:for-item="item" >
+        <image class="img" mode="aspectFill" src="{{ item.file || '../images/img_zwt.png' }}" data-err-img="productList[{{ index }}].file" binderror="onImageError"></image>
+        <view class="info">
+          <view class="name">
+            <text>{{ item.meter.name }} {{ item.category.name }}</text>
+            <text class="discountDesc" wx:if="{{item.isSale == 1}}">{{ item.discountDesc }}</text>
+          </view>
+          <!--<view  wx:for="{{item.attrValList}}" wx:key="item">{{item.attrVal}} </view>-->
+          <view class="attribute">{{ item.attrs[0].name }}{{ item.attrs[0].value }} / {{ item.attrs[1].name }}{{ item.attrs[1].value }}</view>
+
+          <view class="bottom">
+
+            <view class="priceTotal">
+              <view class="price">￥<text>{{ item.promMonthPrice }}</text> /月</view>
+              <view class="price2">￥<text>{{ item.promDayPrice }}</text>/天</view>
+            </view>
+
+            <view class="buy numChangBox"  wx:if="{{ item.num && item.num>0 }}" >
+              <view class="reduceBox">
+                <image style="{{ item.num && item.num>0 ? '' : 'visibility:hidden' }}" class="reduce" @tap.stop="reduceNum({{index}})" src="../images/icon_js.png"></image>
+              </view>
+              <input style="{{ item.num && item.num>0 ? '' : 'visibility:hidden' }}" type="number" value="{{ item.num?item.num:'0' }}" @tap.stop="clickStop" @input="inputNum({{index}})"  @focus="inputFocus"  @blur="inputBlur" />
+              <view class="plusBox">
+                <image wx:if="{{item.num && item.num>0}}" class="plus" @tap.stop="plusNum({{index}})" src="../images/icon_zj.png"></image>
+                <image wx:else class="plus emptyPlus" @tap.stop="plusNum({{index}})" src="../images/img_xz.png"></image>
+              </view>
+            </view>
+            <view class="buy numChangBox" wx:else  >
+              <view class="plusBox">
+                <image class="plus emptyPlus" @tap.stop="plusNum({{index}})" src="../images/img_xz.png"></image>
+              </view>
+            </view>
+
+
+
+          </view>
+        </view>
+
+        <view class="clickArea" @tap="goDetail({{ item.meter.value }},{{ item.category.value }},{{ item.priceCode }})"></view>
+      </view>
+    </view>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../api/api';
+
+  export default class Products extends wepy.component {
+
+    props = {
+      list: []
+    }
+
+    data={
+     total:0,
+      carsList:[]
+    }
+
+    onLoad() {
+      let that = this;
+      this.$apply();
+    }
+
+    // 统计
+    calcAll(){
+      if(this.list && this.list.length>0){
+        this.total = 0;
+        this.carsList = [];
+        this.list.forEach(item=>{
+          this.total += Number(item.num) || 0;
+          if(item.num && item.num >0){
+            this.carsList.push(item);
+          }
+        });
+      }
+    }
+
+    methods = {
+      onImageError: function(ev){
+
+        this.$emit('onCpImageError',ev);
+      },
+
+      goDetail(shigh, category, priceCode) {
+        this.$parent.$parent.setEventsLogs({
+          event_id:'product_detail',
+          params:{
+            product_id:priceCode,
+            product_name:shigh+'_'+category,
+          }
+        });
+
+        wx.navigateTo({
+          url: "/pages/main/product_detail?shigh=" + shigh + "&category=" + category + "&id=" + priceCode
+        });
+      },
+
+      buyAction(priceCode) {
+        wx.reportAnalytics('quick_order', {
+          product_id: priceCode,
+          page: '/pages/main/home-list',
+          description: '',
+        });
+
+        this.$parent.$parent.needBindPhone(function () {
+          wx.navigateTo({
+            url: "/pages/order/place_order?id=" + priceCode
+          });
+        },"/pages/order/place_order?id=" + priceCode);
+      },
+
+      // 加法
+      plusNum(index){
+
+        this.$parent.$parent.setEventsLogs({
+          event_id:'product_add',
+          params:{
+            product_id:this.list[index].priceCode,
+            product_name:this.list[index].meter.name + this.list[index].category.name,
+            current_num: this.list[index].num
+          }
+        });
+
+        if(!this.list[index].num){
+          this.list[index].num = 0
+        }
+        this.list[index].num ++;
+
+        this.calcAll();
+        this.$emit('numChange',this.total, this.carsList);
+      },
+
+      // 减法
+      reduceNum(index){
+        this.$parent.$parent.setEventsLogs({
+          event_id:'product_minus',
+          params:{
+            product_id:this.list[index].priceCode,
+            product_name:this.list[index].meter.name + this.list[index].category.name,
+            current_num: this.list[index].num
+          }
+        });
+
+        if(this.list[index].num == 0) return false
+        this.list[index].num --;
+        this.calcAll();
+        this.$emit('numChange',this.total, this.carsList);
+      },
+
+      // 输入
+      inputNum(index,e){
+        if(Number(e.detail.value)>99 && e) {
+          this.list[index].num = e.detail.value = '99'
+        }else{
+          this.list[index].num = Number(e.detail.value).toString();
+        }
+        this.calcAll();
+        this.$emit('numChange',this.total, this.carsList);
+        return this.list[index].num;
+      },
+
+      inputFocus(){
+        this.isFocus = true;
+        this.$apply();
+      },
+
+      inputBlur(){
+        this.isFocus = false;
+        this.$apply();
+      },
+
+      clickStop(){
+
+      }
+
+    };
+  }
+</script>
+<style lang="less">
+  .product_list {
+    overflow: hidden;
+    width: 750rpx;
+    .item {
+      display:flex;
+      flex-direction:row;
+      background:#fff;
+      padding:10rpx;
+      margin:10rpx;
+      height:auto;
+      width:auto;
+      margin-bottom: 50rpx;
+      position: relative;
+      &:first-child{
+        margin-top:40rpx;
+      }
+      &:last-child{
+        margin-bottom: 20rpx;
+      }
+      .img {
+        width:220rpx;
+        height:160rpx;
+        background:#DBDBDB;
+        margin-left:0rpx;
+      }
+      .clickArea{
+        height: 180rpx;
+        width: 535rpx;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 2;
+      }
+      .info {
+        flex-direction:column;
+        flex:1;
+        padding:0 30rpx;
+        padding-right:0;
+        position: relative;
+        height:160rpx;
+        .name {
+          font-size:32rpx;
+          color:#333333;
+          .discountDesc{
+            font-size: 18rpx;
+            color: #ffffff;
+            background: #FF5D5D;
+            border-radius: 8rpx;
+            width: 60rpx;
+            height: 28rpx;
+            text-align: center;
+            line-height: 28rpx;
+            display: inline-block;
+            vertical-align: top;
+            margin-left: 15rpx;
+            margin-top: 10rpx;
+          }
+        }
+
+        .attribute {
+          font-size:24rpx;
+          color:#979797;
+          padding:20rpx 10rpx 18rpx 0;
+          letter-spacing:0;
+        }
+
+        .bottom {
+          .priceTotal {
+            flex-direction:row;
+            display:flex;
+            flex: 1;
+            .price {
+              font-size:20rpx;
+              color: #FE3F3B;
+              text {
+                font-size:34rpx;
+              }
+            }
+
+            .price2 {
+              font-size:20rpx;
+              color: #FE3F3B;
+              letter-spacing: 0;
+              margin-left: 30rpx;
+              text {
+                font-size: 34rpx;
+              }
+            }
+          }
+
+        }
+
+      }
+    }
+
+    .buy {
+      width: 196rpx;
+      text-align: center;
+      vertical-align: top;
+      position: absolute;
+      top: 50%;
+      margin-top:-43rpx;
+      right:-20rpx;
+      text-align: right;
+      .plusBox,.reduceBox{
+        display: inline-block;
+        padding: 20rpx 20rpx 20rpx 0;
+      }
+      .reduceBox{
+        display: inline-block;
+        padding: 20rpx 0 20rpx 20rpx;
+      }
+      .plus{
+        width: 48rpx;
+        height: 48rpx;
+        vertical-align: top;
+        &.emptyPlus{
+          width: 130rpx;
+          height: 50rpx;
+        }
+      }
+      text{
+        width: 60rpx;
+        text-align: center;
+        font-size: 32rpx;
+        line-height: 48rpx;
+        height: 48rpx;
+        color: #45474F;
+        vertical-align: top;
+        display:inline-block;
+      }
+      input{
+        width: 60rpx;
+        padding: 20rpx 0;
+        text-align: center;
+        font-size: 32rpx;
+        line-height: 48rpx;
+        height: 48rpx;
+        color: #45474F;
+        vertical-align: top;
+        display:inline-block;
+      }
+      .reduce{
+        width: 48rpx;
+        height: 48rpx;
+        vertical-align: top;
+      }
+    }
+  }
+  .bc {
+    min-height: 250rpx;
+    background: #fff;
+    padding-bottom:80rpx;
+  }
+</style>

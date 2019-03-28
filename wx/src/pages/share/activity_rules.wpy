@@ -1,0 +1,81 @@
+<template>
+  <view class="activity_rules_wrap">
+    <view class="activity_rules_box">
+      <view class="title">活动细则</view>
+      <view class="content">
+        <text decode="true">{{ rule }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+
+  export default class activity_rules extends wepy.page {
+    config = {
+      navigationBarTitleText: '活动细则',
+      navigationBarBackgroundColor: '#ffffff',
+      navigationBarTextStyle: 'black',
+      enablePullDownRefresh: false,
+      disableScroll:true
+    };
+
+    data = {
+      pageShow: false,
+      rule:'1，邀好友点赞，赢回家火车票，每天都可以点赞一次\n' +
+        '2，活动开奖时间：2019-1-14\n' +
+        '3，活动奖品：开奖后，点赞数最高的6位用户将获得众能送出的回家车票一张（最高价值499元）\n' +
+        '4，凡发现作弊，刷单行为用户，不享受任何活动奖励\n' +
+        '5，活动截止时间：2018-11-11 23:11\n' +
+        '5，众能联合数字技术有限公司保留对本活动的最终解释权'
+    };
+
+    onLoad (params, data) {
+      console.log(data.preload.rules);
+      this.rule = data.preload.rules;
+    }
+
+  }
+</script>
+
+<style lang="less" >
+  page {
+    background-color: #FE4B42;
+    height:100%;
+  }
+  .activity_rules_wrap{
+    padding: 30rpx;
+    background-color: #FE4B42;
+    box-sizing:border-box;
+    height:100%;
+  }
+  .activity_rules_box{
+    box-sizing:border-box;
+    height:100%;
+    padding: 30rpx;
+    border-style: solid;
+    border-width: 2px;
+    border-color: #FFF;
+    /*border-image: -webkit-linear-gradient(#48CBEF,#EA75E4) 30 60;*/
+    /*border-image: -moz-linear-gradient(#48CBEF,#EA75E4) 30 60;*/
+    /*border-image: linear-gradient(#48CBEF,#EA75E4) 30 60;*/
+
+
+    .title{
+      font-size: 36rpx;
+      line-height: 50rpx;
+      color: #FFF;
+      text-align: center;
+      margin-top: 30rpx;
+    }
+    .content{
+      margin-top: 30rpx;
+      color: #ffffff;
+      font-size: 26rpx;
+      line-height: 56rpx;
+    }
+
+  }
+</style>

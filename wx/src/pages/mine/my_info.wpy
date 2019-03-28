@@ -1,0 +1,213 @@
+<template>
+  <view wx:if="{{ pageShow }}">
+    <dialogBox :dialogIsShow.sync="isHide" @sureCb.user="sure"  @cancelCb.user="cancel" hidden="{{ isHide }}" ></dialogBox>
+    <view class="personalAuthenticationWrap">
+      <view class="backInfo">
+        <view class="labelItem">
+          <view class="lableName">昵称</view>
+          <view class="lableValue">
+            <text>{{ wxName }}</text>
+          </view>
+        </view>
+        <view class="labelItem">
+          <view class="lableName">手机号码</view>
+          <view class="lableValue">
+            <text>{{ mobile }}</text>
+          </view>
+        </view>
+        <view class="labelItem" @tap="bindCode">
+          <view class="lableName">邀请码</view>
+          <view class="lableValue" >
+            <image wx:if="{{ !invitationCode }}" class="arrow" src="../../images/arrow_left.png" disable="false"></image>
+            <text wx:else>{{ invitationCode }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '../../api/api';
+import tip from '../../utils/tip';
+import dialogBox from  '../../components/dialog';
+import {USER_INFO,USER_SPECICAL_INFO} from  '../../utils/constant';
+
+export default class my_info extends wepy.page {
+  config = {
+    navigationBarTitleText: '个人信息',
+  };
+
+  data = {
+    pageShow:false,
+    isHide:true,
+    "wxName":'', //微信名
+    "mobile":"", // 手机号码
+    "invitationCode":""// 邀请码
+  };
+
+  components={
+    dialogBox:dialogBox
+  };
+
+  onLoad() {
+    tip.loading();
+    this.init();
+  }
+
+  // 页面初始化
+  async init(){
+    let that = this;
+    let wxUserInfo =  await api.znGetStorageSync(USER_INFO);
+    let userInfo =  await api.znGetStorageSync(USER_SPECICAL_INFO);
+    that.mobile = userInfo.userInfo.phoneNum;
+    this.wxName = wxUserInfo.detail.userInfo.nickName;
+    // 请求个人信息 接口 获取 认证信息状态
+    let result  = await api.getCertification({});
+    if(result && result.data && result.data.errCode == 0){
+      that.invitationCode = result.data.data.invitationCode; // 邀请码
+      that.mobile = result.data.data.mobile || userInfo.userInfo.phoneNum;
+    }
+    tip.loaded();
+    this.pageShow = true;
+    this.$apply();
+    console.log('init -- end-- ')
+  }
+
+  methods = {
+    bindCode(){
+      if(!this.invitationCode){
+        this.isHide = false;
+        this.$apply();
+      }
+    },
+
+    //sure
+    async sure(val){
+      let that = this;
+      if(!val){
+        wx.showModal({
+          content: '请填写邀请码',
+          showCancel:false,
+          confirmColor:'#FF8000',
+          success: res=>{
+            if (res.confirm) {
+            }
+          }
+        })
+        return false;
+      }
+      this.isHide = true;
+      tip.loading('正在提交..')
+      let result = await api.setInvitationCode({
+        method:"POST",
+        query:{
+          invitationCode:val
+        }
+      });
+      if(result && result.data && result.data.errCode == 0){
+        if(result.data.data == 1){
+          tip.success('提交成功！',800).then(()=>{
+            that.init();
+          });
+        }
+      }else {
+        tip.loaded();
+      }
+
+      this.$apply();
+    },
+
+    cancel(){
+      this.isHide = true;
+      this.$apply();
+    }
+  };
+
+}
+
+</script>
+<style lang="less">
+.personalAuthenticationWrap{
+  padding-bottom: 98rpx;
+  .backInfo{
+    background-color: #ffffff;
+    margin-bottom: 20rpx;
+    .labelItem {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 0 0 20rpx;
+      border-bottom: 1px solid #E5E5E5;
+
+      &:last-child{
+        border-bottom: 0;
+      }
+    }
+    .lableName {
+      width: 136rpx;
+      line-height: 48rpx;
+      color: #000;
+      font-size: 34rpx;
+      padding: 20rpx 0;
+    }
+
+    .lableValue {
+      padding-right: 20rpx;
+      text-align: right;
+      line-height: 48rpx;
+      color: #000;
+      font-size: 34rpx;
+      margin-left: 44rpx;
+      position: relative;
+      flex:1;
+      .value {
+        flex: 1;
+        color: #000;
+        padding: 20rpx 20rpx 20rpx 0;
+        font-size: 34rpx;
+        line-height: 48rpx;
+        /*//min-height: 48rpx;*/
+      }
+      .placeholder {
+        font-size: 34rpx;
+        color: #B2B2B2;
+        line-height: 48rpx;
+        margin-left: 2rpx;
+      }
+      .arrow {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        margin-top: -13rpx;
+        width: 26rpx;
+        height: 26rpx;
+        margin-right: 20rpx;
+        /*//margin: 0 20rpx 0 0;*/
+      }
+    }
+  }
+  .bottomButton{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    .lineSubmit{
+      width: 100%;
+      height: 98rpx;
+      font-size: 36rpx;
+      text-align: center;
+      color: #ffffff;
+      background-color:#FF8000;
+      border: 0;
+      border-radius:0;
+      &:before,&:after{
+        border: 0;
+      }
+    }
+  }
+}
+</style>

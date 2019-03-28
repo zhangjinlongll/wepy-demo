@@ -1,0 +1,500 @@
+
+<template>
+  <view class="creditWrap" wx:if="{{ pageShow }}">
+    <view class="contentHead">
+      <!--<image class="ldt" src="../../images/img_ld.png"></image>-->
+      <!--<view class="score">当前分值：70</view>-->
+      <image class="dw-bg" src="../../images/img_dw.png"></image>
+      <view class="downBox" @tap="jumpRule">信用准则</view>
+      <ecCanvas id="mychart-dom-bar" :ec.sync='ec'></ecCanvas>
+    </view>
+
+    <view class="rankingBox">
+      <view class="ranking">
+        <view class="rankBox">
+          <view class="rankTip" style="margin-left:  {{ rankRatio <28 ?0:(rankRatio < 72 && rankRatio>=28?(0.95*rankRatio/100*630-176+'rpx'):'278rpx' ) }};">排名已超过<text>{{ rankRatio }}%</text>的同行业用户</view>
+          <view class="arrow-b" style="margin-left: {{ rankRatio>0?(0.95*rankRatio+'%'):'10rpx' }}"></view>
+          <view class="baseRule">
+            <image src="../../images/img_pm.png"></image>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="myRight" style="padding-top: 20rpx;">
+
+      <view class="titleBox">
+        <view class="line"></view>
+        <image class="" src="../../images/icon_title_zc.png"></image>
+        <view class="titleText">我的权益</view>
+        <image class="" src="../../images/icon_title_yc.png"></image>
+        <view class="line"></view>
+      </view>
+
+      <view class="iconList">
+        <view class="item" @tap="jumpPolicy">
+          <image class="icon" src="../../images/icon_policy.png"></image>
+          <view class="textBox">
+            <view class="text">商务政策</view>
+            <view class="tips">免押金租车</view>
+          </view>
+        </view>
+
+        <view class="item">
+          <image class="icon" src="../../images/icon_project_policy.png"></image>
+          <view class="textBox">
+            <view class="text">敬请期待</view>
+            <view class="tips">更多权益</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!--暂时隐藏-->
+    <!--<view class="bottomBtn">-->
+      <!--<view class="item active">-->
+        <!--<image class="icon_yellow" src="../../images/icon_xy_xz.png"></image>-->
+        <!--<image class="icon_gray" src="../../images/icon_xy_wx.png"></image>-->
+        <!--<view class="text">我的信用</view>-->
+      <!--</view>-->
+      <!--<view class="item">-->
+        <!--<image class="icon_yellow"  src="../../images/icon_jl_wx.png"></image>-->
+        <!--<image class="icon_gray" src="../../images/icon_jl_wx.png"></image>-->
+        <!--<view class="text">信用记录</view>-->
+      <!--</view>-->
+      <!--<view class="item">-->
+        <!--<image class="icon_yellow"  src="../../images/icon_zz_wx.png"></image>-->
+        <!--<image class="icon_gray" src="../../images/icon_zz_wx.png"></image>-->
+        <!--<view class="text">信用准则</view>-->
+      <!--</view>-->
+    <!--</view>-->
+
+  </view>
+</template>
+
+<script>
+  import wepy from "wepy";
+  import api from "../../api/api";
+  import tip from '../../utils/tip';
+  import EcCanvas from '../../components/charts';
+  import * as echarts from '../../plugins/ec-canvas/echarts';
+
+  export default class credit_info extends wepy.page {
+    config = {
+      navigationBarTitleText: '我的信用'
+    };
+    components = {
+      ecCanvas:EcCanvas
+    };
+    data = {
+      pageShow:true,
+      empty_tip_btn_show:false,
+      empty_tip_show:true,
+      rankRatio:100, // 排名百分比
+      indicator:[],
+      chartsData:{
+        value : [],
+        name : ''
+      },
+      score:0,
+      grade:'',
+      ec:{
+        onInit: this.initChart,
+        _this:null,
+      },
+
+      idcardNum:'',
+      realname:'',
+      mobile:'',
+
+    };
+
+    onLoad(params,data) {
+      let that = this;
+      that.$apply(()=>{
+        that.rankRatio = data.preload.rankRatio;
+        that.idcardNum = data.preload.idcardNum;
+        that.realname = data.preload.realname;
+        that.mobile = data.preload.mobile;
+        if(data.preload.items && data.preload.items.length>0){
+          let chartsData = [];
+          let chartsDataFirst = [];
+          let indicators = [];
+          let indicatorFirst = [];
+          data.preload.items.forEach((item,index)=>{
+            if(index == 0){
+              chartsDataFirst.push(item.value);
+              indicatorFirst.push({
+                name: item.name,
+                max: item.max
+              })
+            }else{
+              chartsData.push(item.value);
+              indicators.push({
+                name: item.name,
+                max: item.max
+              })
+            }
+          });
+          that.chartsData.value = chartsDataFirst.concat(chartsData.reverse());
+          that.indicator = indicatorFirst.concat(indicators.reverse());
+        }
+        that.score = data.preload.score;
+        that.grade = data.preload.grade;
+        that.ec._this = {
+          chartsData:that.chartsData,
+          indicator:that.indicator,
+          score:that.score,
+          grade:that.grade
+        };
+      });
+      this.set_page_show(true);
+    }
+
+    set_page_show(show){
+      this.$apply(()=>{
+        this.pageShow = show;
+      });
+    }
+
+    initChart(canvas, width, height) {
+      let that = this._this;
+      const chart = echarts.init(canvas, null, {
+        width: width,
+        height: height
+      });
+      canvas.setChart(chart);
+
+      var option = {
+        title: {
+          text: `当前评级 ${that.grade}`,
+          textStyle: {
+            fontSize:14,
+            color: '#fff'
+          },
+          left:'center',
+          bottom:'12%'
+        },
+        radar: {
+          name: {
+            textStyle: {
+              color: '#fff',
+            }
+          },
+          splitLine: {
+            lineStyle: {
+              color: 'rgba(242,252,0,0.4)'
+            }
+          },
+          splitNumber: 3,
+          splitArea: {
+            show: false
+          },
+          axisLine: {
+            lineStyle: {
+              color: 'rgba(242,252,0,0.4)'
+            }
+          },
+          indicator: that.indicator
+        },
+        series: [{
+          name: '征信',
+          type: 'radar',
+          symbol:'circle',
+          symbolSize: 8,
+          data : [that.chartsData],
+          lineStyle:{
+            width:2,
+            color:'#F2FF00'
+          },
+          areaStyle:{
+            color: 'rgba(242,252,0,0.3)',
+          },
+          itemStyle:{
+            color:'#F2FF00',
+            borderWidth:6,
+            borderColor:'rgba(245,244,26, 0.4)',
+          }
+        }]
+      };
+
+      chart.setOption(option);
+      return chart;
+    }
+
+    // 获取个人权益集
+    async getEquityInfo(){
+      let that = this;
+      let result = await  api.getEquityInfo({
+        query: {
+          idcard:that.idcardNum,
+          name:that.realname,
+          mobile:that.mobile
+        }
+      });
+      if(result && result.data && result.data.errCode == 0){
+        return result
+      } else {
+        throw result
+      }
+    }
+
+    methods = {
+      jumpRule(){
+        wx.navigateTo({
+          url: '/pages/mine/credit_criteria'
+        });
+      },
+
+      jumpPolicy(){
+        let that = this;
+        tip.loading();
+        that.getEquityInfo().then(res=>{
+          tip.loaded();
+          var obj = res.data.data;
+          that.$preload(obj);
+          that.$navigate('/pages/mine/business_policy');
+        }).catch(error=>{
+          tip.loaded();
+        });
+      }
+
+    }
+  }
+</script>
+
+<style lang="less">
+  page{
+    background-color: #FFFFFF;
+  }
+  .creditWrap{
+    padding-bottom: 111rpx;
+    .contentHead{
+      position: relative;
+      background-color: #FF8000;
+      padding-bottom: 55rpx;
+      padding-top: 30rpx;
+
+      .downBox{
+        width: 134rpx;
+        text-align: center;
+        text-indent: 10rpx;
+        height: 46rpx;
+        line-height: 46rpx;
+        border:1px solid #ffffff;
+        border-radius: 23rpx 0 0 23rpx;
+        border-right:0;
+        font-size: 24rpx;
+        color: #ffffff;
+        position: absolute;
+        top: 30rpx;
+        right: 0;
+        z-index: 3;
+      }
+
+      .ldt{
+        display: block;
+        width: 504rpx;
+        height: 386rpx;
+        margin: 0 auto;
+        position: relative;
+        z-index: 2;
+      }
+      .score{
+        text-align: center;
+        color: #FFFFFF;
+        font-size: 28rpx;
+        margin-top: 10rpx;
+        position: relative;
+        z-index: 2;
+      }
+      .dw-bg{
+        left: 0;
+        position: absolute;
+        bottom: 0;
+        width: 750rpx;
+        height: 164rpx;
+        z-index: 1;
+      }
+    }
+    .rankingBox{
+      background-color: #FFFFFF;
+    }
+    .ranking{
+      border-radius: 10rpx;
+      background-color: #FFFFFF;
+      width: 710rpx;
+      height: 220rpx;
+      margin: 0 auto;
+      position: relative;
+      z-index: 3;
+      margin-top: -80rpx;
+      box-shadow: 0px -1rpx 34rpx 0px rgba(0, 0, 0, 0.13);
+
+      .rankBox{
+        width: 630rpx;
+        margin: 0 auto;
+        position: relative;
+        padding: 46rpx 0;
+      }
+      .rankTip{
+        text-align: center;
+        width: 352rpx;
+        border: 1px solid #FF8000;
+        border-radius: 10rpx;
+        color: #666666;
+        font-size: 24rpx;
+        line-height: 50rpx;
+        height: 50rpx;
+        text{
+          color: #FF8000;
+        }
+      }
+      .arrow-b{
+        margin-left: 10px;
+        float: left;
+        width: 0;
+        height: 0;
+        border-width: 14rpx;
+        border-style: solid;
+        border-color:#FF8000 transparent transparent transparent;
+      }
+      .baseRule{
+        width: 590rpx;
+        height: 12rpx;
+        /*background-color: #FF8000;*/
+        margin: 0 auto;
+        margin-top: 22rpx;
+        image{
+          width: 604rpx;
+          height: 51rpx;
+        }
+      }
+
+    }
+
+    .tipRules{
+      background-color: #FFF5E6;
+      padding: 10rpx 20rpx;
+      white-space:nowrap;
+      text{
+        white-space:nowrap;
+        font-size: 24rpx;
+        color: #747474;
+        line-height: 32rpx;
+        text{
+          color: #FF8000;
+        }
+      }
+    }
+    .myRight{
+      background-color: #FFFFFF;
+      padding: 0 40rpx;
+
+      .titleBox{
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        line-height: 90rpx;
+        height: 90rpx;
+        background-color: #ffffff;
+        .line{
+          width: 150rpx;
+          height: 1px;
+          background-color: #e5e5e5;
+          margin: 0 20rpx;
+        }
+        image{
+          width: 32rpx;
+          height: 32rpx;
+        }
+        .titleText{
+          color: #343434;
+          font-size: 34rpx;
+          font-weight: 700;
+          padding: 0 20rpx;
+        }
+
+      }
+
+      .iconList{
+        overflow: hidden;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 0 45rpx 0 20rpx;
+        .item{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          width: 50%;
+          padding: 32rpx 0 46rpx 0;
+          .icon{
+            width: 90rpx;
+            height: 90rpx;
+            display: block;
+            margin: 0 20rpx;
+          }
+          .text{
+            font-size: 30rpx;
+            color: #343434;
+          }
+          .tips{
+            font-size: 24rpx;
+            color: #999999;
+            margin-top: 2rpx;
+          }
+        }
+      }
+    }
+
+    .bottomBtn{
+      position: fixed;
+      bottom: 0;
+      height: 111rpx;
+      width: 750rpx;
+      background-color: rgba(254, 254, 254, 1);
+      box-shadow: 0px -1px 20px 0px rgba(0, 0, 0, 0.13);
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      .item{
+        text-align: center;
+        padding:20rpx 0;
+        image{
+          width: 42rpx;
+          height: 42rpx;
+          display: block;
+          margin:  0 auto;
+        }
+        .text{
+          height: 28rpx;
+          line-height: 28px;
+          color: #999999;
+          font-size: 20rpx;
+          text-align: center;
+        }
+        .icon_yellow{
+          display: none;
+        }
+        .icon_gray{
+          display: block;
+        }
+
+        &.active{
+          .text{
+            color: #FF8000;
+          }
+          .icon_yellow{
+            display: block;
+          }
+          .icon_gray{
+            display: none;
+          }
+        }
+      }
+    }
+
+  }
+</style>

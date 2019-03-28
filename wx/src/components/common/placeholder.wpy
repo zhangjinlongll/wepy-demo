@@ -1,0 +1,87 @@
+<template>
+    <view class="empty-placeholder row-center" wx:if="{{show}}">
+        <image class="icon-xl" src="../../images/noData.png" style="margin-top: {{ top }};"/>
+        <view class="txt">{{message}}</view>
+        <view class="bnttext" bindtap="jumpAction" style="margin-top: {{ buttonTop }};" wx:if="{{showBnt}}">{{bnttext}}</view>
+    </view>
+</template>
+<script>
+import wepy from 'wepy'
+export default class Placeholder extends wepy.component {
+    props = {
+        show: {
+            type: Boolean,
+            default: true
+        },
+        showBnt:{
+          type: Boolean,
+          default: true
+        },
+        message: {
+          default: '暂无订单'
+        },
+        bnttext:{
+          default:'快速下单'
+        },
+        top:{
+        	default:'150rpx'
+        },
+        buttonTop:{
+        	default:'180rpx'
+        }
+    };
+
+  methods ={
+      jumpAction:function(){
+        this.$emit("jumpAction");
+      }
+    };
+
+  onLoad() {
+    console.log(".......",this.message);
+    let that = this;
+
+  }
+
+
+
+}
+</script>
+<style lang="less">
+.empty-placeholder {
+/*margin-top:150rpx;*/
+	padding: 50rpx 0;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    display: block;
+    text-align: center;
+}
+
+.icon-xl {
+    width: 550rpx;
+    height: 249rpx;
+    display: block;
+    margin: 0 auto;
+}
+
+.txt {
+    font-size: 36rpx;
+    color: #888888;
+  	margin-top: 36rpx;
+    width: 200;
+    align-self: center;
+}
+  .bnttext {
+    width: 300rpx;
+    line-height: 88rpx;
+    background-color:#FF8000;
+    text-align: center;
+    align-self: center;
+    border-radius: 44px;
+    color: #ffffff;
+    margin: 0 auto;
+    font-size: 36rpx;
+  }
+</style>

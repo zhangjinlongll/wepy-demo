@@ -1,0 +1,175 @@
+<template>
+  <view class="select_default_wrap" bindtap="hiddenModel">
+    <view class="shade">
+      <view class="select_content">
+        <view class="select_head" wx:if="{{ isShowHead }}">
+          <view class="select_head_left_btn" @tap="headLeftBtn">{{ leftBtnName }}</view>
+          <view class="select_head_center_title" >{{ title }}</view>
+          <view class="select_head_right_btn" @tap="headRightBtn">{{ rightBtnName }}</view>
+        </view>
+        <view class="select_body">
+          <view wx:for="{{list}}" wx:for-item="item" wx:for-index="index" wx:key="select" @tap.stop="selectItem({{item}})" class="{{ item.isActive ? 'select_item' : 'select_item select_gray'  }}"  >
+            {{ item.name }}
+          </view>
+        </view>
+        <view class="select_foot">
+          <button @tap.stop="footBtn">{{ footBtnName }}</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy';
+  export default class select_default extends wepy.component {
+    props = {
+      isShowHead:{
+        default:false,
+        type:Boolean
+      },
+      leftBtnName:{
+        default:'返回',
+        type:String
+      },
+      title:{
+        default:'选择',
+        type:String
+      },
+      rightBtnName:{
+        default:'完成',
+        type:String
+      },
+      list:{
+        default:[{
+          name:"以个人身份签约",
+          isActive:true
+        },{
+          name:"以企业身份签约（敬请期待）",
+          isActive:false
+        }],
+        type:Array
+      },
+      footBtnName:{
+        default:'取消',
+        type:String
+      }
+    };
+
+    data = {
+    };
+
+    methods = {
+      //头部左侧按钮
+      headLeftBtn(){
+        this.$emit(' headLeftCb')
+      },
+
+      //头部右侧按钮
+      headRightBtn(){
+        this.$emit('headRightCb')
+      },
+
+      // 点击按钮
+      selectItem(item){
+        if(!item.isActive){
+          // wx.showModal({
+          //   content: '功能正在开发，只能以个人身份签约',
+          //   showCancssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+          // })
+        }else{
+          this.$emit('selectedCb',item)
+        }
+      },
+
+      //页面底部按钮
+      footBtn(){
+        this.$emit('footBtnCb')
+      },
+
+      hiddenModel(){
+        console.log('111111');
+        this.$emit("hiddenModel")
+      }
+
+    };
+
+    onLoad() {
+      let that = this;
+
+    }
+
+  }
+</script>
+
+<style lang="less">
+  .select_default_wrap{
+    .shade{
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background-color: rgba(0,0,0,0.6);
+      z-index:99;
+    }
+
+    .select_content{
+      background-color: #ffffff;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      .select_head{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        height: 100rpx;
+        line-height: 100rpx;
+        border-bottom: 1rpx solid #ccc ;
+        .select_head_left_btn{
+          font-size: 30rpx;
+          padding-left: 20rpx;
+          color: #ccc;
+        }
+        .select_head_center_title{
+          font-size: 36rpx;
+          color: #000;
+        }
+        .select_head_right_btn{
+          font-size: 30rpx;
+          padding-right: 20rpx;
+          color: green;
+        }
+      }
+      .select_body{
+        .select_item{
+          height: 100rpx;
+          line-height: 100rpx;
+          text-align: center;
+          font-size: 34rpx;
+          color: #FF8000;
+          border-bottom: 1rpx solid rgba(0,0,0,0.1);
+          &.select_gray{
+            color: #B7B7B7;
+          }
+          &:last-child{
+            border-bottom: 0;
+          }
+        }
+      }
+      .select_foot{
+        border-top: 12rpx solid rgba(205,205,209,0.30);
+        button{
+          border: 0;
+          background-color: #ffffff;
+          font-size: 34rpx;
+          color: #000000;
+          text-align: center;
+          height: 100rpx;
+          line-height: 100rpx;
+        }
+      }
+    }
+  }
+</style>

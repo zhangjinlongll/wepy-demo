@@ -1,0 +1,71 @@
+<template>
+  <view class="couponRuleWrap">
+    <view style="height: 30rpx"></view>
+    <view style="font-size: 36rpx;color: #FF8000;text-align: center;font-weight: 700">{{ info.title }}</view>
+    <view style="height: 50rpx;line-height: 60rpx"></view>
+    <view wx:for="{{ info.list }}" wx:for-item="item" wx:for-index="index" wx:key="this">
+      <view style="font-size: 28rpx;text-align: justify;color: #000000;line-height: 40rpx;"> {{ item.Q }}</view>
+      <view style="font-size: 28rpx;text-align: justify;color: #000000;line-height: 40rpx;"> {{ item.A }}</view>
+      <view style="height: 50rpx;line-height: 60rpx"></view>
+    </view>
+    <view style="font-size: 28rpx;text-align: justify;color: #000000;line-height: 40rpx;">{{ info.other }}</view>
+  </view>
+  <view style="font-size: 26rpx;color: #B2B2B2;text-align: center">{{ info.belong }}</view>
+
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '../../api/api';
+import tip from '../../utils/tip';
+
+export default class coupon_rule extends wepy.page {
+  config = {
+    navigationBarTitleText: '使用规则',
+  };
+
+  data = {
+    info:{
+      "title": "优惠券使用规则",
+      "list": [{"Q": " 1. 优惠券有有效期吗？", "A": "有，优惠券必须在有效期内使用，过期作废。"}, {
+        "Q": " 2. 一个订单最多能够使用几张优惠券？",
+        "A": "订单每次支付可使用一张优惠券，不可叠加。"
+      }, {"Q": " 3. 优惠券可以转送给他人账户吗？", "A": "优惠券发至账户后与账户绑定，不可转送。"}, {
+        "Q": "4. 优惠券可以找零或兑现吗？",
+        "A": "优惠券须一次性使用，不找零、不兑现。"
+      }, {"Q": " 5.还有哪些优惠活动？", "A": "平台会不定期开展各种活动，敬请期待和关注。"}],
+      "other": "如果您还有其他关于优惠券的问题和建议，欢迎致电，24小时客服热线：400-805-8558.",
+      "belong": "本活动最终解释权归众能联合数字技术有限公司所有。"
+    }
+  };
+
+  async onLoad() {
+    await this.init();
+  }
+
+  // 页面初始化
+  async init(){
+    let that = this;
+    const res = await api.getConfig({
+      query: {
+        key: 'cps_use_rule'
+      }
+    })
+    if (res && res.data && res.data.errCode === 0) {
+      that.info = JSON.parse(res.data.data.cfgValue);
+    }
+    that.$apply();
+  };
+
+}
+
+</script>
+<style lang="less">
+  page{
+    background-color: #ffffff;
+  }
+.couponRuleWrap{
+  padding: 20rpx;
+  min-height: 1080rpx;
+}
+</style>

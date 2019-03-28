@@ -1,0 +1,424 @@
+<template>
+  <view class="select_payMoneyBox">
+    <block wx:if="{{hiddenView}}">
+      <view class="black_content" @tap="hiddenModel">
+        <view class="contairPay  {{ isIphoneX?'iphoneXClass':'' }}" @tap.stop="empty">
+          <view class="cancelView">
+            <image src="../images/icon_gb.png" @tap="hiddenModel"></image>
+          </view>
+          <view class="moneyBox" wx:if="{{ moneyBoxShow }}">
+            <view class="moneyItem">
+              <view class="leftText">{{titleName}}</view>
+              <view class="rightText">¥{{totalMoney}}</view>
+            </view>
+
+            <view class="moneyItem" wx:if="{{ alredyPayAmount && alredyPayAmount != '0' }}">
+              <view class="leftText">已支付</view>
+              <view class="rightText">-¥{{alredyPayAmount}}</view>
+            </view>
+
+            <view class="moneyItem" wx:if="{{ alreadyCouponPayAmount != '0' }}">
+              <view class="leftText">已优惠</view>
+              <view class="rightText">-¥{{alreadyCouponPayAmount}}</view>
+            </view>
+
+            <view class="moneyItem">
+              <view class="leftText">还需支付</view>
+              <view class="rightText" style="color: #FF8000">¥{{orderBlance}}</view>
+            </view>
+          </view>
+          <view class="payTip">
+            <text class="title">请选择支付金额</text>
+          </view>
+          <view class="pay_content">
+            <block wx:for="{{payTitle}}" wx:for-index="index" wx:for-item="item" wx:for-item="item" wx:key="this">
+              <view class="{{selectIndex != index ?'item':'item_select'}}" @tap.stop="selectItem({{index}},{{item}})">¥{{item}}</view>
+            </block>
+            <block>
+              <view class="item lastItem">
+                <input type="number" focus placeholder="其他金额" placeholder-class="placeholder" cursor-spacing="70" maxlength="8" value="{{ customPrice }}" @input="inputCustomPrice" />
+              </view>
+            </block>
+          </view>
+          <!--<view class="{{selectIndex == 7 ?'orderbal_select':'orderbal'}}" bindtap="selectBalance">默认金额<text>¥{{orderBlance}}</text></view>-->
+          <view class="{{selectIndex == 7 ?'orderbal_select':'orderbal'}}" bindtap="selectBalance"><text space="emsp">确认</text></view>
+        </view>
+      </view>
+    </block>
+
+  </view>
+
+</template>
+
+
+<script>
+  import wepy from 'wepy';
+
+  export default class select_paymoney extends wepy.component {
+    props = {
+      hiddenView: {
+        type: Boolean,
+        Defalut: null,
+      },
+
+      selectIndex: {
+        type: String,
+        default: 7,
+      },
+
+      isIphoneX:{
+        type:Boolean,
+        default:false,
+      },
+
+      moneyBoxShow:{
+        type:Boolean,
+        default:true,
+      },
+
+      orderBlance:{
+        type: String,
+        default: null,
+      },
+
+      totalMoney:{
+        type:String,
+        default:null,
+      },
+
+      alredyPayAmount:{
+        type:String,
+        default:null,
+      },
+
+      alreadyCouponPayAmount:{
+        type:String,
+        default:null,
+      },
+
+      canPayAmount:{
+        type:String,
+        default:null
+      },
+
+      titleName:{
+        type:String,
+        default:null
+      }
+
+    }
+
+    data = {
+      payTitle:["1000","2000","5000","10000","15000"],
+      selectItem:{
+        index:null,
+        item:null,
+      }
+    }
+
+    sureClick() {
+      if (!this.selectItem.item) {
+        this.$emit("hiddenModel");
+      }else{
+        this.$emit('submitClick');
+      }
+    }
+
+    methods = {
+      hiddenModel:function () {
+        this.$emit("hiddenModel");
+      },
+
+      selectItem:function (index,item) {
+        this.selectIndex = index;
+        this.selectItem = {
+          index:index,
+          item:item,
+        };
+        this.$apply();
+        this.sureClick();
+      },
+
+ /*     sureClick:function () {
+
+        console.log(this.selectItem);
+        if (!this.selectItem.item) {
+          this.$emit("hiddenModel");
+        }else{
+          this.$emit('submitClick');
+        }
+      },*/
+
+      empty:function(){
+
+      },
+
+      selectBalance:function () {
+        if(!this.customPrice){
+          wx.showModal({
+            content: '请输入支付金额',
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{
+              if (res.confirm) {
+
+              }
+            }
+          });
+          return
+
+        }
+        this.selectIndex = '7';
+        this.selectItem = {
+          index:'7',
+          item:this.customPrice,
+        };
+        this.$apply();
+        this.sureClick();
+      },
+
+      inputCustomPrice(e){
+        this.selectIndex = '7';
+        this.customPrice =  e.detail.value;
+        this.$apply();
+      }
+    };
+
+    onLoad() {
+      let that = this;
+      console.log('sssss',that.orderBlance);
+    }
+
+    onHide(){
+      this.selectIndex = '7';
+      this.$apply();
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .select_payMoneyBox{
+    .contairPay {
+      flex-direction:column;
+      width: 100%;
+      align-items: center;
+      padding-bottom: 20rpx;
+      position: fixed;
+      left: 0;
+      z-index: 10001;
+      background: white;
+      overflow: hidden;
+      bottom: 0;
+      opacity:1;
+    }
+
+    .lienView {
+      margin-left:0rpx;
+      height: 1rpx;
+      background-color: #e5e5e5;
+      margin-right: 0rpx;
+    }
+    .payTip {
+      text-align: center;
+      padding: 38rpx 0 34rpx;
+      .title{
+        margin-left: 0rpx;
+        text-align: center;
+        width: 100%;
+        line-height: 48rpx;
+        font-size:36rpx;
+        color: #343434;
+      }
+    }
+
+    .submit {
+      width: 100%;
+      line-height: 98rpx;
+      text-align: center;
+      margin-top: 97rpx;
+      font-size: 36rpx;
+      color: #ffffff;
+      background-color: #FF8000;
+    }
+    .lienView2 {
+      width: 100%;
+      //height: 1rpx;
+      margin-left: 0rpx;
+      margin-top: 1rpx;
+      background-color: #e5e5e5;
+    }
+
+    .item{
+      width:223rpx;
+      font-size: 34rpx;
+      line-height: 90rpx;
+      border-radius: 5rpx;
+      margin-top: 18rpx;
+     // border-color:#FF8000;
+      border: 2rpx #FF8000 solid;
+      color: #FF8000;
+      text-align: center;
+      &.lastItem{
+        border-color: #999999;
+        input{
+          font-size: 34rpx;
+          line-height: 90rpx;
+          height: 90rpx;
+          text-align: center;
+          color: #333333;
+          &.placeholder{
+            color: #999999;
+          }
+        }
+
+      }
+
+    }
+
+    .item_select {
+      width:223rpx;
+      font-size: 34rpx;
+      line-height: 90rpx;
+      border-radius: 5rpx;
+      margin-top: 15rpx;
+      border: 2rpx #ffffff solid;
+      color: #ffffff;
+      background:linear-gradient(to right, #fad961,#f76b1c);
+      text-align: center
+    }
+
+    .pay_content {
+      display: flex;
+      height: 280rpx;
+      margin-left: 15rpx;
+      margin-right: 15rpx;
+      margin-top: 0;
+      background-color: #ffffff;
+      flex-wrap: wrap;
+      align-items: center;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+
+    .black_content {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.7);
+      overflow: hidden;
+    }
+
+    .cancelBnt {
+      margin-left: 20rpx;
+      align-self: center;
+      width: 32rpx;
+      height: 32rpx;
+    }
+
+
+
+    .orderbal{
+      margin-top: 15rpx;
+      margin-left: 15rpx;
+      margin-right: 15rpx;
+      line-height: 111rpx;
+      text-align: center;
+       bottom: 15rpx;
+      border: 2rpx #FF8000 solid;
+      font-size: 34rpx;
+      color: #FF8000;
+      overflow:hidden;
+      text{
+        margin-left: 15rpx;
+      }
+    }
+
+    .orderbal_select{
+      margin-top: 15rpx;
+      margin-left: 15rpx;
+      margin-right: 15rpx;
+      line-height: 111rpx;
+      text-align: center;
+      bottom: 15rpx;
+      border: 2rpx #FF8000 solid;
+      font-size: 34rpx;
+      color: #ffffff;
+      overflow:hidden;
+      background:linear-gradient(to right, #fad961,#f76b1c);
+      text{
+        margin-left: 15rpx;
+      }
+    }
+
+    .leftTitle{
+      float: left;
+      margin-left: 15rpx;
+      color: #000000;
+      font-size: 34rpx;
+      line-height: 120rpx;
+    }
+
+    .money{
+      float: left;
+      margin-left: 20rpx;
+      color: #FF8000;
+      font-size: 34rpx;
+      line-height: 120rpx;
+    }
+
+    .cycle{
+      float: right;
+      margin-right: 15rpx;
+      width: 42rpx;
+      height: 42rpx;
+      margin-top: 39rpx;
+    }
+
+    .cancelView{
+      margin-left: 0rpx;
+      width: 100%;
+      height: 50rpx;
+      background-color: #ffffff;
+      image{
+        float: right;
+        margin-right: 15rpx;
+        margin-top: 20rpx;
+        width:32rpx;
+        height: 32rpx;
+      }
+    }
+
+    .moneyBox{
+    }
+
+    .moneyItem{
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0rpx;
+      height: 88rpx;
+      width: 100%;
+      flex-direction: row;
+      border-bottom:1rpx #e5e5e5 solid;;
+    }
+
+    .leftText{
+      float: left;
+      margin-left: 15rpx;
+      color: #747474;
+      line-height: 88rpx;
+      //width: 200rpx;
+
+    }
+
+    .rightText{
+      float: right;
+      margin-right: 15rpx;
+      line-height: 88rpx;
+      color: #747474;
+    }
+  }
+
+</style>

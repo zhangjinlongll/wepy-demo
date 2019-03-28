@@ -1,0 +1,2114 @@
+<template>
+  <form bindsubmit="formSubmit" report-submit="true" class="placeOrderWrap  {{ isIphoneX?'iphoneXClassPB':'' }}" wx:if="{{ pageShow }}">
+    <view class="container">
+
+      <view class="tipRules" wx:if="{{ userAuthStatus != 1 }}">
+      <!--<view class="tipRules" wx:if="{{ userAuthStatus != 1 }}">-->
+        <text>为了您的账号安全，请尽快完成实名认证</text>
+        <view @tap="jumpAuth">立即实名</view>
+      </view>
+
+
+      <view class="addressBox">
+        <!--地址为空,选择地址-->
+        <view class="selectAddressBox" wx:if="{{!addressParams.isShowAddressInfo}}">
+          <view class="selectAddress" @tap="jumpAddress">
+            <image class="btn_bg" src="../../images/img_xx.png"></image>
+            <text>+点击选择用车地址</text>
+          </view>
+        </view>
+
+        <!--选择地址-->
+        <view class="addressInfoBox" @tap="changeAddress" wx:if="{{addressParams.isShowAddressInfo}}">
+          <!--<view class="userName">-->
+          <!--<text class="name">{{ addressParams.userName }}</text>-->
+          <!--<text class="phone">{{ addressParams.userPhone }}</text>-->
+          <!--</view>-->
+          <view class="projectName">{{ projectName }}</view>
+          <view class="userAddress">{{ addressParams.userAddress }}</view>
+          <input type="text" style="display: none" value="{{ addressParams.userAddress }}" name="address"/>
+          <view class="changBtn">
+            <text>换地址</text>
+            <image class="arrow" src="../../images/arrow_left.png"></image>
+          </view>
+        </view>
+
+        <image class="selectAddressLine" src="../../images/img_fgx.png"></image>
+
+        <!--配送-->
+        <view class="addressSendType" wx:if="{{ addressParams.isShowAddressInfo }}">
+          <view class="storeInfo">
+            <view style="display: inline-block;width: 244rpx">
+              <text>距</text>
+              <image class="locaIcon" src="../../images/icon_dw.png" @tap="openMap"></image>
+              <text @tap="openMap">{{ addressParams.storeName }}</text>
+            </view>
+            <text class="distance">{{ totalMileage }}公里</text>
+          </view>
+          <view class="{{ sendType == 1?'sendType':'sendType checked'   }}" @tap="switchSendType">
+            <view class="label"></view>
+            <text class="{{ sendType == 1?'checked':'' }}">配送</text>
+            <text class="{{ sendType == 0?'checked':'' }}">自提</text>
+          </view>
+        </view>
+
+        <!--配送运费-->
+        <view class="freight" wx:if="{{addressParams.isShowAddressInfo  && sendType === 1 }}">
+          <text class="labelName" wx:if="{{freight}}">运费</text>
+          <text class="price" wx:if="{{freight}}">¥{{ freight || '0' }}</text>
+          <text wx:else style="color: #FF8000">运费以客户经理沟通确认为准</text>
+        </view>
+        <!--自提地址-->
+        <view class="storeAddress" wx:if="{{addressParams.isShowAddressInfo && sendType === 0}}">
+          <text class="lableName">仓库地址</text>
+          <text class="address" @tap="openMap">{{ addressParams.storeAddress }}</text>
+        </view>
+      </view>
+
+      <view class="devBox">
+        <view class="dateBox">
+          <view class="useBeginDate" >
+            <picker mode="multiSelector" value="{{pickIndex}}" range="{{pickArray}}"  range-key="name" bindchange="pickerSave" bindcolumnchange="pickerColumnChange" bindcancel="pickerCancel" >
+            <!--  <view class="picker">
+                当前选择：{{pickArray[0][pickIndex[0]].name}}，{{pickArray[1][pickIndex[1]].name}}，{{pickArray[2][pickIndex[2]].name}}
+              </view>
+-->
+              <view class="label">用车</view>
+              <view class="date">
+                <!--<text>{{ beginUseDate.date }}</text>-->
+                <text>{{ beginUseDate.date?beginUseDate.date:'请选择' }}</text>
+                <image class="arrow shape" src="../../images/shape.png"></image>
+              </view>
+              <view class="time">{{beginUseDate.week+" "+beginUseDate.time }}</view>
+            </picker>
+
+          </view>
+          <view class="useCenterDays" @tap="openDaysPop">
+            <view class="days" style="{{ usesDays>0 ?'color: #333333':'' }}">{{ usesDays }}天</view>
+            <input type="text" style="display: none" value="{{ usesDays }}" name="daysNum"/>
+            <image class="line" src="../../images/img_jt.png"></image>
+          </view>
+          <view class="useEndDate" @tap="openDaysPop">
+            <view class="label">还车</view>
+            <view class="date"><text>{{ endUseDate.date?endUseDate.date:'请选择' }}</text><image class="arrow shape" src="../../images/shape.png"></image></view>
+            <view class="time">{{ endUseDate.week && endUseDate.time?(endUseDate.week+' '+endUseDate.time ):'' }}</view>
+          </view>
+        </view>
+
+        <view class="devListBox">
+          <view class="product_list">
+            <view class="item" wx:for="{{deviceList}}" wx:key="pro" wx:for-index="index" wx:for-item="item" >
+              <image class="img" mode="aspectFill" src="{{ item.file || '../../images/img_zwt.png'  }}"  data-err-img="deviceList[{{ index }}].filePath" binderror="onImageError"></image>
+              <view class="info">
+                <view class="name">
+                  <text>{{ item.meter.name }} {{ item.category.name }}</text>
+                  <!--<text class="discountDesc" wx:if="{{item.isSale == 1}}">{{ item.discountDesc }}</text>-->
+                </view>
+                <!--<view  wx:for="{{item.attrValList}}" wx:key="item">{{item.attrVal}} </view>-->
+                <view class="attribute">{{ item.attrs[0].name }}{{ item.attrs[0].value }} / {{ item.attrs[1].name }}{{ item.attrs[1].value }}</view>
+                <view class="bottom">
+                  <view class="priceTotal">
+                    <view class="price">￥<text>{{ item.promMonthPrice }}</text> /月</view>
+                    <view class="price2">￥<text>{{ item.promDayPrice }}</text>/天</view>
+                  </view>
+                  <view class="buy numChangBox" >{{ item.num }} 台</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="priceBox">
+          <text class="labelName">租金</text>
+          <text class="price">¥{{ rent }}</text>
+        </view>
+      </view>
+
+      <!--信用评分-->
+      <view class="creditScoreBox" @tap="jumpAuthRule" wx:if="{{ userAuthStatus == 1 }}">
+        <view class="titleBox">
+          <view class="title">评级{{ grade }}（{{creditLevelDesc}}）</view>
+          <image class="tips" src="../../images/img_zigz.png"></image>
+        </view>
+        <view class="creditScoreContent">
+          <view class="tip">根据您的信用评级，可享以下权益</view>
+          <view class="listRight">
+
+            <view class="item" wx:for="{{myEquityItemList}}" wx:key="myEquityItemList" wx:for-index="index" wx:for-item="item" >{{ item.equityName }}</view>
+            <!--<view class="item">30天账期</view>-->
+            <!--<view class="item">免押金</view>-->
+            <!--<view class="item">用车保障</view>-->
+            <!--<view class="item">时效保障</view>-->
+          </view>
+        </view>
+      </view>
+
+      <view class="remarksBox">
+        <input placeholder="您请注明，对设备的其他要求" placeholder-class="placeholder" value="{{ remarks }}" @input="inputRemarks" />
+      </view>
+
+      <view class="submitBtnBox   {{ isIphoneX?'iphoneXClass':'' }}">
+        <view class="priceInfo"  @tap="lookRentRlues">
+          <view class="sumInfo">
+            <view class="labelName">预估</view>
+            <view class="price">¥{{ totalPrice }}</view>
+            <input type="text" style="display: none" value="{{ totalPrice }}" name="totalPrice" />
+            <image class="tips" src="../../images/img_zigz.png"></image>
+          </view>
+          <view class="tipText">最终费用，以实际使用天数为准。</view>
+        </view>
+
+        <button class="btn btn_yellow" formType="submit">
+          提交订单
+        </button>
+
+        <!--<button class="{{totalPrice && totalPrice>0 ?'btn btn_yellow':'btn btn_gray' }}" formType="submit">-->
+        <!--提交订单-->
+        <!--</button>-->
+      </view>
+    </view>
+
+    <!--天数选择弹窗-->
+    <view class="daysPopBox" wx:if="{{ isDaysPopShow }}">
+      <view class="daysPop">
+        <view class="daysHead">
+          <text>请确认用车天数</text>
+          <image class="icon_close" src="../../images/icon_gb.png" @tap="closeDaysPop"></image>
+        </view>
+        <view class="daysBody">
+          <view class="item" @tap="selectDays(3)">3天</view>
+          <view class="item" @tap="selectDays(10)">10天</view>
+          <view class="item" @tap="selectDays(30)">30天</view>
+          <view class="item" @tap="selectDays(60)">60天</view>
+          <view class="item" @tap="selectDays(90)">90天</view>
+          <view class="item lastItem">
+            <input type="number" placeholder="其他天数" min="0"  max="9999" maxlength="4" @input="inputDays" cursor-spacing="70"  focus="true"/>
+          </view>
+        </view>
+        <view class="daysFoot">
+          <view class="btn" @tap="sureDays">确认</view>
+        </view>
+
+      </view>
+      <view class="mask" @tap="closeDaysPop"></view>
+    </view>
+    <rentrules :isShow.sync="rentRules" @cb.user="closeCbRentRlues"></rentrules>
+  </form>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import utils from '../../utils/util';
+
+  let appConfig = require('../../utils/app_config');
+  let amapFile = require('../../libs/amap-wx.js');
+
+  import {NOTIFI_ORDER_SELECT_ADDRESS} from '../../utils/notif_const'
+  import {USER_CITY,SHOPPING_CARS,ORDER_PARAMS,USER_SPECICAL_INFO,USER_INFO} from '../../utils/constant'
+  import WxNotificationCenter from '../../libs/WxNotificationCenter';
+  import WxValidate from '../../libs/WxValidate';
+  import dateTimePicker  from '../../libs/dateTimePicker'
+  import RentRules from '../../components/rentRules';
+
+
+  export default class place_order extends wepy.page {
+    config = {
+      navigationBarTitleText: '确认订单',
+      navigationBarBackgroundColor: '#FF8000'
+    };
+
+    components = {
+      rentrules: RentRules,
+    };
+
+    data = {
+      pickIndex: [0, 0, 0],
+      pickArray: [['10月9日 今天','10月10日 星期三'], ['1点','2点','3点','4点','5点','6点'], ['00分', '10分', '20分', '30分', '40分', '50分']],
+      pageShow:false,
+      isIphoneX:false,
+      fromParams:{},
+      isFristLoad:true, // 是否为第一次加载
+      isDaysPopShow:false, // 是否暂时 天数弹窗
+      rentRules:false, // 是否展示租金规则
+      deviceList:[], // 设备列表
+      addressParams:{
+        isShowAddressInfo:false, // 默认展示点击选择用车地址按钮
+        selectedId:0, // 选中的地址id
+        userName:'', // 用车联系人
+        userPhone:'', // 用车联系人手机
+        userAddress:'', // 用车地址
+        carAddressCode: "", // 用车地址编码
+        userCity:'', // 用车城市
+        userLat:'', // 用车地址纬度
+        userLon:'', // 用车地址经度
+        storeName:'', // 仓库名称
+        storeAddress:'', // 仓库地址
+        storeLat:'', // 仓库地址纬度
+        storeLon:'', // 仓库地址经度
+        storeCode: "", // 仓库编码
+        cityCode:''
+      },
+      projectName:'', // 项目名称
+      totalMileage:'', // 公里数
+      sendType: 1, // 配送方式 1 配送 0自提
+      freight:0, // 运费
+      rent:0, // 租金
+      totalPrice:0, // 总费用
+      beginUseDate:{
+        fullDate:'',
+        date:'', // 日期 例：07月28日
+        time:'', // 时间 例：08：00
+        week:''  // 星期 例：周六
+      }, // 开始用车时间
+      endUseDate:{
+        fullDate:'',
+        date:'', // 日期 例：07月28日
+        time:'', // 时间 例：08：00
+        week:''  // 星期 例：周六
+      }, // 结束用车时间
+      usesDays:0, //用车天数
+      usesDaysPop:0,//
+      isShowSetDaysPop:false, // 是否展示天数设置弹窗
+      remarks:"", // 备注
+
+      currentAddressInfo:{
+        latitude:"",
+        longitude:"",
+        address:""
+      },
+
+      tempTime:'',
+      dateRang:null,
+      deliverTime:'',
+      cbCity:false, // 选择城市回调
+      isChangeCity:false, // 监听城市是否变化
+      authentication:false, // 是否认证
+      userAuthStatus:0,
+
+      idcardNum:null,
+      name:'',
+      mobile:'',
+
+
+      myEquityItemList:[],
+      grade:'',
+      creditLevelDesc:''
+    };
+
+
+    onLoad(option) {
+      let that = this;
+      that.isIphoneX = that.$parent.globalData.isIphoneX;
+      tip.loading();
+      let deviceObj = api.znGetStorageSync(SHOPPING_CARS);
+      this.deviceList = deviceObj.shoppingCarsList || [];
+      this.init();
+      tip.loaded();
+      this.pageShow=true;
+      WxNotificationCenter.addNotification(NOTIFI_ORDER_SELECT_ADDRESS, that.addressCb,that);
+    }
+
+    onReady(){
+      this.isFristLoad = false;
+    }
+
+    onShow(){
+      let that = this;
+      //第一次不执行
+      if(!this.isFristLoad){
+        tip.loading();
+
+        tip.loaded();
+      }
+      //选择城市 通知后， 展示
+      if(that.cbCity){
+        that.getProductList();
+        that.calcPrice();
+
+        if(!that.isFirstSelect){
+
+          wx.showModal({
+            title: '提示',
+            content: `已自动更新为已选地址所在区域的价格`,
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{
+              if (res.confirm) {
+                this.cbCity = false;
+                this.$apply();
+              }
+            }
+          })
+
+        }
+      }
+    }
+
+    onUnload() {
+      let that = this;
+      WxNotificationCenter.removeNotification(NOTIFI_ORDER_SELECT_ADDRESS, that);
+    }
+
+    methods = {
+      onImageError: function(ev){
+        let that = this;
+        var _errImg=ev.target.dataset.errImg;
+        var _errObj={};
+        _errObj[_errImg]="../../images/img_zwt.png";
+        console.log( ev.detail.errMsg+"----" + "----" +_errImg );
+        that.setData(_errObj);
+      },
+
+      // 跳转选择地址页面
+      async jumpAddress(){
+        // await this.getRegoMap();
+        tip.loading();
+        let that = this;
+        var key = appConfig.Config.amapKey;
+        var myAmapFun = new amapFile.AMapWX({key: key});
+        var isDoing = true;
+        myAmapFun.getRegeo({
+          success: (res) => {
+            if(isDoing){
+              const seaArea = res[0].regeocodeData.seaArea;
+              const province = res[0].regeocodeData.addressComponent.province || '';
+              const city = res[0].regeocodeData.addressComponent.city || '';
+              const district = res[0].regeocodeData.addressComponent.district || '';
+              const township = res[0].regeocodeData.addressComponent.township || '';
+              const formatted_address = res[0].regeocodeData.formatted_address || '';
+              const stree = res[0].regeocodeData.addressComponent.streetNumber.street || '';
+              const number = res[0].regeocodeData.addressComponent.streetNumber.number || '';
+              const address = res[0].regeocodeData.aois.length>0?res[0].regeocodeData.aois[0].name:'';
+
+              let finalAddress = ''
+              // dang stree 为空
+              if(stree && number){
+                finalAddress = city+district+township+stree+number+' '+address
+              }else{
+                finalAddress = formatted_address.replace(province,'');
+              }
+
+              that.currentAddressInfo.latitude = res[0].latitude;
+              that.currentAddressInfo.longitude = res[0].longitude;
+              that.currentAddressInfo.address = finalAddress || seaArea;
+
+              let projectName = ( address?address:( city + (township || district)) ) ||  finalAddress;
+
+              let params={
+                type:2, // 告诉地址列页为选择地址页面
+                fromUrl:'/pages/order/place_order',
+                cbUrl:'/pages/order/place_order',
+                latitude:  this.addressParams.userLat || this.currentAddressInfo.latitude,
+                longitude: this.addressParams.userLon || this.currentAddressInfo.longitude,
+                textName: this.addressParams.userAddress || this.currentAddressInfo.address,
+                projectName: this.projectName || projectName,
+                userName:this.addressParams.userName,
+              };
+              that.$apply();
+              tip.loaded();
+              wx.navigateTo({
+                url: '/pages/common/map_location?params='+encodeURIComponent(JSON.stringify(params))
+              });
+            }
+
+          },
+          fail: (error) => {
+
+            isDoing = false;
+            // 没有打开定位授权
+            wx.showModal({
+              content: `无法获取定位，请确认定位授权是否开启！`,
+              showCancel: false,
+              confirmColor: '#FF8000',
+              success: res=>{if (res.confirm) {
+                tip.loaded();
+                wx.openSetting({
+                  success:()=>{
+                  }
+                });
+              }}
+            });
+          }
+        });
+
+      },
+
+      //换地址
+      changeAddress(){
+        let params={
+          type:2, // 告诉地址列页为选择地址页面
+          // fromUrl:'/pages/order/place_order',
+          // selectedId:this.selectedId  // 告诉选择地址页面 选中的哪一个
+          fromUrl:'/pages/order/place_order',
+          cbUrl:'/pages/order/place_order',
+          latitude:  this.addressParams.userLat || this.currentAddressInfo.latitude,
+          longitude: this.addressParams.userLon || this.currentAddressInfo.longitude,
+          textName: this.addressParams.userAddress || this.currentAddressInfo.address,
+          projectName: this.projectName,
+          userName:this.addressParams.userName,
+        };
+        wx.navigateTo({
+          url: '/pages/common/map_location?params='+encodeURIComponent(JSON.stringify(params))
+        });
+      },
+
+      // 切换配送方式
+      switchSendType(){
+        if(this.sendType === 1){
+          this.sendType = 0;
+        }else{
+          this.sendType = 1;
+        }
+        this.saveLocalData();
+        this.$apply();
+      },
+
+      // 打开地图
+      openMap(){
+        console.log(Number(this.addressParams.storeLat),Number(this.addressParams.storeLon))
+        wx.openLocation({
+          latitude: Number(this.addressParams.storeLat), // 纬度，浮点数，范围为90 ~ -90
+          longitude: Number(this.addressParams.storeLon), // 经度，浮点数，范围为180 ~ -180。
+          name: this.addressParams.storeName,
+          address: this.addressParams.storeAddress, // 地址详情说明
+          scale: 12, // 地图缩放级别,整形值,范围从1~28。默认为最大
+        });
+      },
+
+      pickerColumnChange(e){
+        console.log('修改的列为', e.detail.column, '，值为', e.detail.value);
+        this.pickIndex[e.detail.column] = e.detail.value;
+
+        // 滑动第一列
+        if(e.detail.column == 0){
+          if(e.detail.value == 0){
+            this.pickIndex[1] = 0;
+            this.$apply()
+            var currDate = new Date();
+            var currYear = currDate.getFullYear();  // 年
+            var currMonth = currDate.getMonth()+1;  // 月
+            var currDay = currDate.getDate();       // 日
+            var currHours = currDate.getHours();  // 时
+            var currMinutes = currDate.getMinutes();// 分
+            // 拼接小时 数组
+            var hoursArr = [];
+            for (let i = 0; i < (24-currHours); i++) {
+              hoursArr.push({
+                id:i,
+                name:`${( currHours+i )<10?( '0'+(currHours+i) ):( currHours+i )}点`
+              });
+
+            }
+            this.pickArray[1] = hoursArr;
+
+            // 拼接分钟 数组
+            var minutesArr = [];
+            for (let i = 0; i < (60-currMinutes); i++) {
+              minutesArr.push({
+                id:i,
+                name:`${( currMinutes+i )<10?( '0'+(currMinutes+i) ):( currMinutes+i )}分`
+              });
+            }
+            this.pickArray[2] = minutesArr;
+            console.log(this.pickArray)
+          }else{
+            // 拼接小时 数组
+            var hoursArr = [];
+            for (let i = 0; i < (24); i++) {
+              hoursArr.push({
+                id:i,
+                name:`${i<10?('0'+i):i}点`
+              });
+            }
+            this.pickArray[1] = hoursArr;
+
+            // 拼接分钟 数组
+            var minutesArr = [];
+            for (let i = 0; i < (60); i++) {
+              minutesArr.push({
+                id:i,
+                name:`${i<10?('0'+i):i}分`
+              });
+            }
+            this.pickArray[2] = minutesArr;
+          }
+        }
+
+        // 滑动第二列
+        if(e.detail.column == 1 && this.pickIndex[0] == 0){
+          if(e.detail.value == 0){
+
+            var currDate = new Date();
+            var currYear = currDate.getFullYear();  // 年
+            var currMonth = currDate.getMonth()+1;  // 月
+            var currDay = currDate.getDate();       // 日
+            var currHours = currDate.getHours();  // 时
+            var currMinutes = currDate.getMinutes();// 分
+            // 拼接分钟 数组
+            var minutesArr = [];
+            for (let i = 0; i < (60-currMinutes); i++) {
+              minutesArr.push({
+                id:i,
+                name:`${( currMinutes+i )<10?( '0'+(currMinutes+i) ):( currMinutes+i )}分`
+              });
+            }
+            this.pickArray[2] = minutesArr;
+            this.pickIndex[2] = 0;
+            this.$apply();
+          }else{
+            // 拼接分钟 数组
+            var minutesArr = [];
+            for (let i = 0; i < (60); i++) {
+              minutesArr.push({
+                id:i,
+                name:`${i<10?('0'+i):i}分`
+              });
+            }
+            this.pickArray[2] = minutesArr;
+          }
+        }
+
+
+
+
+        this.$apply();
+      },
+
+      pickerSave(e){
+        console.log('picker发送选择改变，携带值为', e.detail.value);
+        this.pickIndex = e.detail.value;
+        this.pickIndex2 = e.detail.value;
+        var dateIndex = e.detail.value[0];
+        var hoursIndex = e.detail.value[1];
+        var minIndex = e.detail.value[2];
+
+        var dateArr = this.pickArray[0][dateIndex].fullDate.split(','); //[年0,月1,日2,时3,分4,周几5]
+        var selectHours = this.pickArray[1][hoursIndex].name.replace('点','');
+        var selectMin = this.pickArray[2][minIndex].name.replace('分','');
+        console.log(selectHours,selectMin);
+
+        /*if(dateIndex == 0 && hoursIndex == 0 && minIndex == 0){
+          this.beginUseDate.time = `${dateArr[3]<10?('0'+dateArr[3]):dateArr[3]}:${dateArr[4]<10?('0'+dateArr[4]):dateArr[4]}`;
+        }else{
+          this.beginUseDate.time = `${selectHours}:${selectMin}`;
+        }*/
+        this.beginUseDate.time = `${selectHours}:${selectMin}`;
+        this.beginUseDate.week = `周${dateArr[5]}`;
+        this.beginUseDate.date = `${dateArr[1]}月${dateArr[2]}日`;
+        console.log(`${dateArr[0]}/${dateArr[1]}/${dateArr[2]} ${this.beginUseDate.time}:00`)
+        this.beginUseDate.fullDate = (new Date(`${dateArr[0]}/${dateArr[1]}/${dateArr[2]} ${this.beginUseDate.time}:00`)).getTime();
+
+        this.endUseDate.fullDate = '';
+        this.endUseDate.time = '';
+        this.endUseDate.week = '';
+        this.endUseDate.date = '';
+        this.usesDays = 0;
+
+        this.saveLocalData();
+        this.$apply();
+      },
+
+      pickerCancel(){
+        this.pickIndex = this.pickIndex2 || [1,8,0];
+        this.$apply()
+      },
+
+      cancel(){
+        console.log(this.tempTime );
+      },
+
+      // 关闭天数弹窗
+      closeDaysPop(){
+        this.isDaysPopShow = false;
+      },
+
+      // 打开天数弹窗
+      openDaysPop(){
+
+        if(this.beginUseDate.fullDate){
+          this.usesDaysPop = 0;
+          this.isDaysPopShow = true;
+        }else{
+          wx.showModal({
+            content: `请先选择用车时间！`,
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{if (res.confirm) {
+
+            }}
+          });
+        }
+
+      },
+
+      // 选择用车天数
+      selectDays(days){
+        this.usesDays =  Number(days);
+        let num = 0
+        if(Number(days)-1>0){
+          num = Number(days)-1;
+        }else {
+          num = 0;
+        }
+        let endUseStr = new Date().setTime(this.beginUseDate.fullDate + num*24*60*60*1000);
+        this.endUseDate.date = utils.format('MM月dd日',new Date(endUseStr));
+        this.endUseDate.fullDate = endUseStr;
+        this.endUseDate.week = utils.format('ddddd',new Date(endUseStr));
+        this.endUseDate.time = '18:00';
+        this.isDaysPopShow = false;
+        this.calcPrice();
+        this.$apply();
+      },
+
+      // 用车天数输入
+      inputDays(e){
+        this.usesDaysPop = e.detail.value;
+        this.$apply();
+      },
+
+      // 天数弹窗确认
+      sureDays(){
+        this.usesDays = Number(this.usesDaysPop);
+        if(!Number(this.usesDays)>0){
+          wx.showModal({
+            content: `请输入正确的用车天数！`,
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{if (res.confirm) {
+
+            }}
+          });
+          return
+        }
+
+        let endUseStr = new Date().setTime(this.beginUseDate.fullDate + (Number(this.usesDays)-1)*24*60*60*1000);
+        this.endUseDate.date = utils.format('MM月dd日',new Date(endUseStr));
+        this.endUseDate.fullDate = endUseStr;
+        this.endUseDate.week = utils.format('ddddd',new Date(endUseStr));
+        this.endUseDate.time = '18:00';
+        this.calcPrice();
+        this.isDaysPopShow = false;
+        this.$apply();
+      },
+
+      // 查看租金规则
+      lookRentRlues(e) {
+        let that = this;
+        that.rentRules = true;
+        that.$apply();
+      },
+
+      // 关闭租金规则回调
+      closeCbRentRlues(value) {
+        let that = this;
+        that.rentRules = value;
+        that.$apply();
+      },
+
+      // 其他要求
+      inputRemarks(e){
+        this.remarks = e.detail.value;
+        this.saveLocalData();
+        this.$apply();
+      },
+
+      // 提交
+      async formSubmit(e){
+        let that = this;
+        if (!this.WxValidate.checkForm(e)) {
+          const errors = this.WxValidate.errorList[0]
+          wx.showModal({
+            content: `${errors.msg}`,
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{if (res.confirm) {}}
+          })
+          return false
+        }
+        tip.loading();
+
+        let devList = [];
+        that.deviceList.forEach((item,index)=>{
+          devList.push({
+            "shigh": item.meter.value,
+            "shighName": item.meter.name,
+            "category": item.category.value,
+            "categoryName": item.category.name,
+            "days": Number(that.usesDays),
+            "num": item.num,
+            "promDayPrice": item.promDayPrice, // 根据城市编号查价格
+            "promMonthPrice": item.promMonthPrice, // 根据城市编号查价格
+            // "subTotal": 3000 // 小计, 后台只存Log，未来用于价格校验
+          })
+        });
+
+        await that.getUserName();
+
+        let params = {
+          "cityCode":that.addressParams.cityCode,
+          "source": 1, // 0:商户端 1: 微信小程序
+          "contactName": that.addressParams.userName, // 联系人名称
+          "contactPhone": that.addressParams.userPhone, // 联系人手机
+          "orderDevList": devList,
+          "orderInfo": {
+            "estEndDate": that.endUseDate.fullDate,//预计还车时间--------------------------------------------新增
+            "estDays": that.usesDays,//预计用车天数--------------------------------------------新增
+            "estRentPrice": that.rent, // 设备需求总租金
+            "estUseDate": that.beginUseDate.fullDate, // 预计用车时间
+            "estFreightPrice": that.freight, // 预估运费 （由产品确认存到哪个字段）运费（默认0.0）
+            "estTotalPrice": that.totalPrice, // 总费用（租金总费用+运费）预估费用
+            "isFace2face": 0, // 是否专人面对面跟进, 0 否，1是
+            "isFreight": that.sendType, // 是否需要运输, 0 否，1是
+            "totalMileage": that.totalMileage || 0, // 总公里数
+            "useAddress": that.addressParams.userAddress, // 用车地址
+            "projectName": that.projectName, // 项目名称 maxLength(100)
+            "remarks": that.remarks || '',// 其他要求 maxLength(200)
+            "lat":  that.addressParams.userLat, // 纬度，地点为空时不传
+            "lon":  that.addressParams.userLon, // 经度，地点为空时不传
+          }
+        };
+
+        console.log(params);
+
+        let json = await api.createOrder({
+          query:params,
+          method:"POST"
+        });
+        if(json && json.data && json.data.errCode == 0 ){
+          wx.reportAnalytics('create_order', {
+            order_code: json.data.data,
+            create_time: that.getNowFormatDate(),
+          });
+          tip.success('提交成功！',800).then(async()=>{
+            if(e.detail.formId){
+              that.msgNotification(e.detail.formId);
+            }
+
+            // 校验是否认证，如果未认证需提示认证
+            if(that.authentication){
+              await that.clearLocalData();
+              await api.znSetStorageSync(SHOPPING_CARS,{"shoppingCarsTotal":0,"shoppingCarsList":[]}); // 清楚购物车缓存
+              await that.$parent.setLocalOrderParams();  // 清楚下单信息缓存
+              that.$apply();
+              console.log('清楚下单信息缓存');
+
+              wx.navigateTo({
+                url: '/pages/order/order_detail?orderCode='+json.data.data
+              });
+            }else{
+              wx.showModal({
+                title: '提交成功',
+                content: '您尚未完成认证，现在去认证？',
+                confirmText:'去认证',
+                confirmColor:'#FF8000',
+                success: res=>{
+                  if (res.confirm) {
+                   that.clearLocalData();
+                   api.znSetStorageSync(SHOPPING_CARS,{"shoppingCarsTotal":0,"shoppingCarsList":[]}); // 清楚购物车缓存
+                   that.$parent.setLocalOrderParams();  // 清楚下单信息缓存
+                    that.$apply();
+                    console.log('清楚下单信息缓存');
+
+                    wx.redirectTo({
+                      url: '/pages/mine/personal_authentication?orderCode='+json.data.data
+                    });
+                  }else if(res.cancel){
+                    that.clearLocalData();
+                    api.znSetStorageSync(SHOPPING_CARS,{"shoppingCarsTotal":0,"shoppingCarsList":[]}); // 清楚购物车缓存
+                    that.$parent.setLocalOrderParams();  // 清楚下单信息缓存
+                    that.$apply();
+                    console.log('清楚下单信息缓存');
+
+                    wx.navigateTo({
+                      url: '/pages/order/order_detail?orderCode='+json.data.data
+                    });
+                  }
+                }
+              })
+            }
+
+          })
+        }else {
+          tip.loaded();
+        }
+
+      },
+
+      jumpAuthRule(){
+        wx.navigateTo({
+          url: `/pages/mine/credit_criteria`
+        });
+      },
+
+      jumpAuth(){
+        wx.navigateTo({
+          url: `/pages/mine/personal_authentication`
+        });
+      }
+    };
+
+    // 判断是否个人认证
+    async getMyInfo(){
+      let that = this;
+      // 请求个人信息 接口 获取 认证信息状态
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode == 0){
+        that.$apply(()=>{
+          that.userAuthStatus = result.data.data.userAuthStatus; // 0: 未认证, 1: 已认证
+          that.entAuthStatus = result.data.data.entAuthStatus; //  0: 未认证, 1: 已认证
+          that.idcardNum = result.data.data.idcardNum; //  0: 未认证, 1: 已认证
+          that.name = result.data.data.realname ;// 联系人名称
+          that.mobile = result.data.data.mobile;// 联系人名称
+        });
+        if(result.data.data.userAuthStatus && result.data.data.userAuthStatus == 1){
+          that.getEquityInfo().then(res=>{
+            that.$apply(()=>{
+              that.grade = res.data.data.grade;
+              that.creditLevelDesc = res.data.data.creditLevelDesc;
+              that.myEquityItemList = res.data.data.myEquityItemList;
+            })
+          })
+        }
+
+      }
+    }
+
+    // 获取个人权益集
+    async getEquityInfo(){
+      let that = this;
+      let result = await  api.getEquityInfo({
+        query: {
+          idcard:that.idcardNum,
+          name:that.realname,
+          mobile:that.mobile
+        }
+      });
+      if(result && result.data && result.data.errCode == 0){
+        return result
+      } else {
+        throw result
+      }
+    }
+
+    //页面初始化
+    async init(){
+      let currentCityCode = api.znGetStorageSync(USER_CITY).cityCode;
+      this.getMyInfo();
+      this.readLocalData();
+      const currentDate =  new Date().getTime();
+      if(this.beginUseDate.fullDate <= currentDate) {
+        // this.getNowFormatDate();
+      }
+
+      this.getNowFormatDate();
+      this.WxValidate = new WxValidate({
+        address:{ required: true},
+        daysNum:{
+          required: true,
+          min:1,
+          max:9999,
+          digits:true
+        },
+        totalPrice:{
+          required: true,
+          min:1
+        }
+      }, {
+        address:{ required: '请选择用车地址'},
+        daysNum:{ required: '请选择用车天数',min:'请选择用车天数',digits:"用车天数只能为数字"},
+        totalPrice:{ required: '租金必须大于0',min:'租金必须大于0',},
+      });
+
+      if(this.addressParams.isShowAddressInfo) {
+        if(this.addressParams.cityCode != currentCityCode){
+          this.isChangeCity = true;
+        }
+        await this.getProductList();
+        await this.calcPrice();
+
+      }
+
+      if(this.isChangeCity){
+        wx.showModal({
+          title: '提示',
+          content: `已自动更新为已选地址所在区域的价格`,
+          showCancel: false,
+          confirmColor: '#FF8000',
+          success: res=>{
+            if (res.confirm) {
+              this.cbCity = false;
+              this.$apply();
+            }
+          }
+        })
+      }
+    }
+
+    //获取当前日期
+    getNowFormatDate() {
+      // //初始化data
+      //TODO 拼接30天日期数组
+
+      var dateArr = [];
+      for (var i = 0; i < 31; i++) {
+        var currDate = new Date();
+        currDate = new Date(currDate.setDate(currDate.getDate()+i))
+        var currYear = currDate.getFullYear();  // 年
+        var currMonth = currDate.getMonth()+1;  // 月
+        var currDay = currDate.getDate();       // 日
+        var currHours = currDate.getHours();  // 时
+        var currMinutes = currDate.getMinutes();// 分
+
+        if(i == 0 ){
+          dateArr.push({
+            id:i,
+            name: `${currMonth}月${currDay}日 今天`,
+            fullDate: `${currYear},${currMonth},${currDay},${currHours},${currMinutes},${"日一二三四五六".charAt(new Date(currYear,currMonth-1,currDay).getDay())}`,
+          });
+
+          // 拼接小时 数组
+          var hoursArr = [];
+          for (let i = 0; i < (24); i++) {
+            hoursArr.push({
+              id:i,
+              name:`${i<10?('0'+i):i}点`
+            });
+          }
+          this.pickArray[1] = hoursArr;
+
+          // 拼接分钟 数组
+          var minutesArr = [];
+          for (let i = 0; i < (60); i++) {
+            minutesArr.push({
+              id:i,
+              name:`${i<10?('0'+i):i}分`
+            });
+          }
+          this.pickArray[2] = minutesArr;
+
+        }else{
+          dateArr.push({
+            id:i,
+            name: `${currMonth}月${currDay}日 星期${"日一二三四五六".charAt(new Date(currYear,currMonth-1,currDay).getDay())}`,
+            fullDate: `${currYear},${currMonth},${currDay},${currHours},${currMinutes<10?('0'+currMinutes):currMinutes},${"日一二三四五六".charAt(new Date(currYear,currMonth-1,currDay).getDay())}`,
+
+          });
+        }
+      }
+
+      this.pickArray[0] = dateArr;
+      this.pickIndex = [1,8,0]; // 初始时间为明天 上午8点
+      this.$apply();
+    }
+
+    // 请求商品列表
+    async getProductList(cb){
+      //1.请求城市产品列表数据
+      //2.取本地购物车缓存数据
+      //3.根据用车高度及类型 取城市产品列表数据 更新购物车
+      //4.如果车型少了则城市变化 需提醒缺少具体车型
+      let that = this;
+      console.log('下单页面 cityCode ........................')
+      let params = {};
+      if(that.addressParams.isShowAddressInfo){
+        params ={
+          query:{
+            cityCode: that.addressParams.cityCode
+          }
+        };
+      }else{
+        params ={}
+      }
+      const json = await api.getProductList(params);
+      if(json && json.data && json.data.errCode === 0) {
+        let shopArryy = [];
+        let delTipes = "";
+        let newNum = 0;
+        that.deviceList.forEach((item,index)=>{
+          var isInList = false;
+          json.data.data.forEach(self=>{
+            if(item.meter.value == self.meter.value  && item.category.value == self.category.value ){
+              isInList = true;
+              self.num = Number(item.num);
+              // that.deviceList[index] = self;
+              newNum += Number(item.num);
+              shopArryy.push(self);
+            }
+          });
+          if(!isInList){
+
+            // 切换城市 如果不存在车型则提示删除
+            delTipes += item.meter.name + item.category.name +'，'
+          }
+        });
+        that.deviceList = shopArryy;
+        var shoppingCarsTotal = newNum;
+        api.znSetStorageSync(SHOPPING_CARS,{
+          shoppingCarsTotal:shoppingCarsTotal,
+          shoppingCarsList:shopArryy
+        });
+        that.$apply();
+        if(delTipes){
+          console.log(delTipes,shopArryy);
+          this.isChangeCity = false;
+          if(shopArryy.length>0){
+            wx.showModal({
+              title:'提示',
+              content: `${delTipes}当前地区无货，已帮您自动删除`,
+              confirmColor: '#FF8000',
+              confirmText:'知道了',
+              cancelText:'修改地址',
+              success: res=>{
+                if (res.confirm) {
+                  if(cb){
+                    cb.call();
+                    this.cbCity = false;
+                    this.$apply();
+                  }
+                }else if(res.cancel){
+                  let params={
+                    type:2, // 告诉地址列页为选择地址页面
+                    // fromUrl:'/pages/order/place_order',
+                    // selectedId:this.selectedId  // 告诉选择地址页面 选中的哪一个
+                    fromUrl:'/pages/order/place_order',
+                    cbUrl:'/pages/order/place_order',
+                    latitude:  this.addressParams.userLat || this.currentAddressInfo.latitude,
+                    longitude: this.addressParams.userLon || this.currentAddressInfo.longitude,
+                    textName: this.addressParams.userAddress || this.currentAddressInfo.address,
+                    projectName: this.projectName,
+                    userName:this.addressParams.userName,
+                  };
+
+                  this.cbCity = false;
+                  this.$apply();
+                  wx.navigateTo({
+                    url: '/pages/common/map_location?params='+encodeURIComponent(JSON.stringify(params))
+                  });
+                }
+              }
+            });
+          }else{
+            wx.showModal({
+              content: `${delTipes}当前地区无货，请重新下单`,
+              showCancel: false,
+              confirmColor: '#FF8000',
+              confirmText:'知道了',
+              success: res=>{if (res.confirm) {
+                wx.navigateBack()
+              }}
+            });
+          }
+        }
+      }
+      that.$apply();
+    }
+
+    // 计算运费
+    async calcPrice(){
+      tip.loading();
+      let that = this;
+      let seqNum = new Date().getTime();
+      that.seqNum = seqNum;
+      let devList =  [];
+      that.deviceList.forEach((item,index)=>{
+        devList.push({
+          "index": index, // 前台需求楼层ID
+          "shigh": item.meter.value, // 米数，为空后台不计算
+          "category": item.category.value, // 类型,为空后台不计算
+          "days": that.usesDays, // 天数, 为0时后台不计算
+          "num": item.num // 数量，为0时后台不计算
+        })
+      });
+      let params = {
+        seqNum: seqNum,
+        devDeamandList: devList,
+        isFreight: that.sendType,
+        lat:that.addressParams.userLat,
+        lon:that.addressParams.userLon,
+        cityCode:that.addressParams.cityCode
+      };
+
+      const json = await api.getCalcPrice({
+        query: params,
+        method: "POST"
+      });
+      if(json && json.data && json.data.data && (json.data.errCode == 0)){
+        this.rent = json.data.data.estRentPrice;
+        this.freight =  0 || json.data.data.estFreightPrice; // TODO 由于运费暂不计算，以下运费取值为0，总费用为租金
+        this.totalPrice =  json.data.data.estRentPrice || json.data.data.estTotalPrice;
+        this.saveLocalData();
+        that.$apply();
+      }
+      tip.loaded()
+    }
+
+    // 获取认证人姓名
+    async getUserName(){
+      let that = this;
+      let userInfo =  await api.znGetStorageSync(USER_SPECICAL_INFO);
+      let wxUserInfo =  await api.znGetStorageSync(USER_INFO);
+
+      that.phone = userInfo.userInfo.phoneNum;
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode == 0){
+        that.addressParams.userName = result.data.data.realname || "微信用户("+ wxUserInfo.detail.userInfo.nickName+")" ;// 联系人名称
+        that.addressParams.userPhone = result.data.data.mobile || userInfo.userInfo.phoneNum;// 联系人手机"contactName": that.addressParams.userName, // 联系人名称
+      }else{
+        that.addressParams.userName =  wxUserInfo.detail.userInfo.nickName;// 联系人名称
+        that.addressParams.userPhone = userInfo.userInfo.phoneNum;// 联系人手机"contactName": that.addressParams.userName, // 联系人名称
+      }
+
+      if(result.data.data.userAuthStatus == 1){
+        this.authentication = true;
+      }else{
+        this.authentication = false;
+      }
+      that.$apply();
+    }
+
+    // 选择地址后回调
+    async addressCb(cbData){
+      //1.处理信息带入，数据绑定
+      //2.判断是否选择地址，判断城市与定位城市是否一致
+      //3.如果不一致，更改定位信息，处理订单中设备价格
+      //4.调用计算接口，计算运费
+      // console.log(cbData);
+
+      let that = this.observer;
+      tip.loading();
+      let orderParams = api.znGetStorageSync(ORDER_PARAMS);
+
+      that.addressParams.isShowAddressInfo = true;
+      that.addressParams.userName = cbData.userName;
+      that.addressParams.userPhone = cbData.userPhone;
+      that.addressParams.userAddress = cbData.addressDetail;
+      that.addressParams.userLon =  cbData.longitude;
+      that.addressParams.userLat =  cbData.latitude;
+      that.addressParams.carAddressCode = cbData.carAddressCode;
+      that.addressParams.storeName =  cbData.storeName;
+      that.addressParams.storeCode =  cbData.storeCode;
+      that.addressParams.storeAddress =  cbData.storeAddress;
+      that.addressParams.storeLon =  cbData.storeLongitude;
+      that.addressParams.storeLat =  cbData.storeLatitude;
+      that.addressParams.cityCode =  cbData.cityCode;
+      that.addressParams.userCity = cbData.cityName;
+
+      that.projectName = cbData.projectName;
+      that.totalMileage = cbData.totalMileage;
+      that.addressParams.selectedId = cbData.id;
+      that.sendType = 1; // 1 配送；0 自提
+
+      if(that.addressParams.cityCode != orderParams.addressParams.cityCode  && orderParams.addressParams.cityCode != undefined){
+        that.cbCity = true;
+        that.isFirstSelect = false;
+      }else if(that.addressParams.cityCode != orderParams.addressParams.cityCode && orderParams.addressParams.cityCode == undefined){
+        that.cbCity = true;
+        that.isFirstSelect = true;
+      }else if(that.addressParams.cityCode  && that.addressParams.cityCode == orderParams.addressParams.cityCode){
+        that.cbCity = false;
+        that.isFirstSelect = false;
+      }else{
+        that.isFirstSelect = false;
+      }
+
+      that.saveLocalData();
+      that.$apply();
+    }
+
+    // 读取本地缓存
+    readLocalData(){
+      let that = this;
+      const orderParams = api.znGetStorageSync(ORDER_PARAMS);
+      if(!orderParams){
+        return false
+      }
+      that.addressParams.isShowAddressInfo = orderParams.addressParams.isShowAddressInfo;
+      that.addressParams.selectedId = orderParams.addressParams.selectedId;
+      that.addressParams.userName = orderParams.addressParams.userName;
+      that.addressParams.userPhone = orderParams.addressParams.userPhone;
+      that.addressParams.userAddress = orderParams.addressParams.userAddress;
+      that.addressParams.userCity = orderParams.addressParams.userCity;
+      that.addressParams.cityCode = orderParams.addressParams.cityCode;
+      that.addressParams.userLat = orderParams.addressParams.userLat;
+      that.addressParams.userLon = orderParams.addressParams.userLon;
+      that.addressParams.storeName = orderParams.addressParams.storeName;
+      that.addressParams.storeAddress = orderParams.addressParams.storeAddress;
+      that.addressParams.storeLat = orderParams.addressParams.storeLat;
+      that.addressParams.storeLon = orderParams.addressParams.storeLon;
+      that.addressParams.storeCode = orderParams.addressParams.storeCode;
+      // that.usesDays = orderParams.usesDays;
+      that.projectName = orderParams.projectName;
+      that.totalMileage = orderParams.totalMileage;
+      that.sendType = orderParams.sendType;
+      that.freight = orderParams.freight;
+      that.rent = orderParams.rent;
+      that.totalPrice = orderParams.totalPrice;
+      // that.beginUseDate.fullDate = orderParams.beginUseDate.fullDate;
+      // that.beginUseDate.date = orderParams.beginUseDate.date;
+      // that.beginUseDate.time = orderParams.beginUseDate.time;
+      // that.beginUseDate.week = orderParams.beginUseDate.week;
+      // that.tempTime = orderParams.tempTime;
+      // that.dateRang = orderParams.dateRang;
+      // that.deliverTime = orderParams.deliverTime;
+
+      if(Number(that.usesDays)-1>0){
+        let num = that.usesDays;
+        let endUseStr = new Date().setTime(this.beginUseDate.fullDate + num*24*60*60*1000);
+        this.endUseDate.date = utils.format('MM月dd日',new Date(endUseStr));
+        this.endUseDate.fullDate = endUseStr;
+        this.endUseDate.week = utils.format('ddddd',new Date(endUseStr));
+        this.endUseDate.time = '18:00';
+      }
+
+      that.remarks = orderParams.remarks;
+    }
+
+    // 清理本地缓存
+    clearLocalData(){
+      let that = this;
+      that.addressParams.isShowAddressInfo = false;
+      that.addressParams.selectedId = 0;
+      that.addressParams.userAddress = '';
+      that.addressParams.userCity = '';
+      that.addressParams.userLat = '';
+      that.addressParams.userLon = '';
+      that.addressParams.storeName = '';
+      that.addressParams.storeAddress = '';
+      that.addressParams.storeLat = '';
+      that.addressParams.storeLon = '';
+      that.addressParams.storeCode = '';
+      that.deviceList = [];
+      // that.usesDays = orderParams.usesDays;
+      that.projectName = '';
+      that.totalMileage = '';
+      that.sendType = 1;
+      that.freight = 0;
+      that.rent =0;
+      that.totalPrice = 0;
+      that.remarks = '';
+      that.$apply();
+    }
+
+    //双十一活动 模板消息通知
+    async msgNotification(formId){
+
+      let close=false; //关闭活动
+      if(close){
+        //isQueryPromotionInviteUser
+        let that = this;
+        let currentDate = new Date();
+        let beginTime = new Date(2018,10,11,11,11,0);
+        let endTime = new Date(2018,10,11,23,59,59);
+        // let beginTime = new Date(2018,9,31,11,11,0);
+        // let endTime = new Date(2018,9,31,23,59,59);
+
+        // 判断是否有
+        let result = await api.isInLeaderboard({
+          query:{promotionType:'11'}
+        });
+        if(result && result.data && result.data.errCode == 0 && result.data.data.result == '1'){
+          //检查是否在"双11活动"的排行榜中，在，发送通知
+          let userInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+          let currentOpenId = userInfo && userInfo.userInfo && userInfo.userInfo.openId ? userInfo.userInfo.openId:''; // 被邀请者openId
+          if(currentOpenId){
+            // TODO  老用户下单模板消息通知 时间在11月11日 发送
+            if( currentDate >= beginTime && currentDate <= endTime ){
+              api.sendWxMsg({
+                method:'POST',
+                query:{
+                  "touser": currentOpenId, // 接收者（用户）的 openid
+                  "template_id": "oF_Qp6hLCXbpnQ6CsAuookGk9FssCcY7eYh5F4bpsn4", //  所需下发的模板消息的id
+                  "page": "/pages/main/home", // 点击模板卡片后的跳转页面，仅限本小程序内的页面。支持带参数,（示例index?foo=bar）。该字段不填则模板无跳转。
+                  "form_id": formId,  // 表单提交场景下，为 submit 事件带上的 formId；支付场景下，为本次支付的 prepay_id
+                  "data": { // 模板内容，不填则下发空模板
+                    "keyword1": {
+                      "value": "众能联合"
+                    },
+                    "keyword2": {
+                      "value": "双十一活动"
+                    },
+                    "keyword3": {
+                      "value": "2018年11月11日"
+                    } ,
+                    "keyword4": {
+                      "value": "恭喜您获得0元租车大礼包！15天内完成设备进场即可享1000元租金返现。有任何疑问，欢迎致电4008058558"
+                    }
+                  },
+                  "emphasis_keyword": "" //模板需要放大的关键词，不填则默认无放大
+                }
+              });
+            }
+
+          }
+        }
+      }
+    }
+
+    // 保存本地缓存
+    saveLocalData(){
+      let that = this;
+      let orderParams = api.znGetStorageSync(ORDER_PARAMS);
+      orderParams.addressParams.isShowAddressInfo = that.addressParams.isShowAddressInfo;
+      orderParams.addressParams.selectedId = that.addressParams.selectedId;
+      orderParams.addressParams.userName = that.addressParams.userName;
+      orderParams.addressParams.userPhone = that.addressParams.userPhone;
+      orderParams.addressParams.userAddress = that.addressParams.userAddress;
+      orderParams.addressParams.userCity = that.addressParams.userCity;
+      orderParams.addressParams.cityCode = that.addressParams.cityCode;
+      orderParams.addressParams.userLat = that.addressParams.userLat;
+      orderParams.addressParams.userLon = that.addressParams.userLon;
+      orderParams.addressParams.storeName = that.addressParams.storeName;
+      orderParams.addressParams.storeAddress = that.addressParams.storeAddress;
+      orderParams.addressParams.storeLat = that.addressParams.storeLat;
+      orderParams.addressParams.storeLon = that.addressParams.storeLon;
+      orderParams.addressParams.storeCode = that.addressParams.storeCode;
+      // orderParams.usesDays = that.usesDays;
+      orderParams.projectName = that.projectName;
+      orderParams.totalMileage = that.totalMileage;
+      orderParams.sendType = that.sendType;
+      orderParams.freight = that.freight;
+      orderParams.rent = that.rent;
+      orderParams.totalPrice = that.totalPrice;
+      // orderParams.beginUseDate.fullDate = that.beginUseDate.fullDate;
+      // orderParams.beginUseDate.date = that.beginUseDate.date;
+      // orderParams.beginUseDate.time = that.beginUseDate.time;
+      // orderParams.beginUseDate.week = that.beginUseDate.week;
+      // orderParams.tempTime = that.tempTime;
+      // orderParams.dateRang = that.dateRang;
+      // orderParams.deliverTime = that.deliverTime;
+      orderParams.remarks = that.remarks;
+
+      api.znSetStorageSync(ORDER_PARAMS,orderParams);
+
+    }
+
+
+
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+    padding-bottom: 98rpx;
+  }
+  .mask{
+    position: fixed;
+    z-index: 99;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    background: rgba(0,0,0,.6);
+  }
+  .daysPopBox{
+
+  }
+  .daysPop{
+    background-color: #ffffff;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    .daysHead{
+      font-size: 36rpx;
+      line-height: 50rpx;
+      height: 50rpx;
+      color: #343434;
+      padding: 40rpx 0;
+      text-align: center;
+      position: relative;
+      text{
+        font-size: 36rpx;
+        line-height: 50rpx;
+        height: 50rpx;
+        color: #343434;
+      }
+      .icon_close{
+        width: 32rpx;
+        height: 32rpx;
+        padding: 20rpx;
+        position: absolute;
+        top:10rpx;
+        right: 10rpx;
+      }
+    }
+
+    .daysBody{
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      flex-wrap:  wrap;
+      padding: 0 20rpx;
+      .item{
+        width: 222rpx;
+        height: 78rpx;
+        text-align: center;
+        line-height: 78rpx;
+        border-radius: 4rpx;
+        border: 1px solid #FF8000;
+        font-size: 30rpx;
+        color: #FF8000;
+        margin-bottom: 20rpx;
+        &.lastItem{
+          input{
+            width: 222rpx;
+            height: 78rpx;
+            text-align: center;
+            line-height: 78rpx;
+            font-size: 30rpx;
+            color: #333;
+          }
+        }
+      }
+    }
+    .daysFoot{
+      padding-bottom: 30rpx;
+      .btn{
+        width: 710rpx;
+        margin: 0 auto;
+        height: 98rpx;
+        border-radius: 4rpx;
+        line-height: 98rpx;
+        color:  #FFFFFF;
+        font-size: 34rpx;
+        text-align: center;
+        background-image: -webkit-linear-gradient(0deg, #FAD961, #F76B1C);
+      }
+    }
+  }
+  .placeOrderWrap{
+
+    .tipRules {
+      background-color: #FFECCE;
+      padding: 15rpx 20rpx;
+      height: 40rpx;
+      line-height: 40rpx;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      text {
+        font-size: 26 rpx;
+        color: #666;
+        line-height: 40rpx;
+      }
+      view{
+        background-color: #FF8000;
+        width: 120rpx;
+        height:40rpx;
+        line-height:40rpx;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        border-radius: 8rpx;
+        text-align: center;
+      }
+    }
+
+    .container{
+      background: none;
+    }
+    .addressBox{
+      background-color: #ffffff;
+
+      .selectAddressBox{
+
+        padding: 40rpx 0;
+        .selectAddress{
+          width: 560rpx;
+          height: 76rpx;
+          position: relative;
+          margin: 0 auto;
+          text-align: center;
+        }
+
+        .btn_bg{
+          width: 560rpx;
+          height: 76rpx;
+          position: absolute;
+          left: 0;
+          top: 0;
+        }
+        text{
+          text-align: center;
+          width: 560rpx;
+          height: 76rpx;
+          line-height: 76rpx;
+          font-size: 30rpx;
+          color: #666;
+        }
+
+      }
+
+      .addressInfoBox{
+        position: relative;
+        padding: 20rpx 200rpx 20rpx 20rpx;
+        .userName{
+
+          .name{
+            font-size: 34rpx;
+            color: #333333;
+            font-weight: 700;
+            line-height: 48rpx;
+          }
+          .phone{
+            font-size: 34rpx;
+            color: #333333;
+            font-weight: 700;
+            line-height: 48rpx;
+            margin-left: 40rpx;
+          }
+        }
+        .userAddress{
+          margin-top: 10rpx;
+          font-size: 24rpx;
+          color: #999999;
+          line-height: 40rpx;
+          margin-top: 20rpx;
+          overflow : hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+
+        }
+        .projectName{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .changBtn{
+          position: absolute;
+          right: 20rpx;
+          top: 50%;
+          margin-top: -13rpx;
+          text{
+            font-size: 30rpx;
+            line-height: 42rpx;
+            color: #999999;
+            padding-right: 5rpx;
+            vertical-align: middle;
+          }
+          .arrow {
+            width: 26rpx;
+            height: 26rpx;
+            vertical-align: middle;
+          }
+        }
+
+      }
+
+      .selectAddressLine{
+        width: 750rpx;
+        height: 2px;
+        display:block;
+        margin: 0;
+      }
+
+      .addressSendType{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20rpx;
+        .storeInfo{
+          text{
+            font-size: 34rpx;
+            line-height: 48rpx;
+            color: #333333;
+            vertical-align: middle;
+            &.distance{
+              /*margin-left: 70rpx;*/
+            }
+          }
+          .locaIcon{
+            width: 36rpx;
+            height: 36rpx;
+            vertical-align: middle;
+          }
+        }
+        .sendType{
+          line-height: 44rpx;
+          border-radius: 22rpx;
+          background-color: #EFEFF4;
+          width: 140rpx;
+          position: relative;
+
+          .label{
+            width:72rpx;
+            height: 44rpx;
+            background-color:#FF8000;
+            color:#fff;
+            border-radius:22rpx;
+            position: absolute;
+            left: 0;
+            top: 1rpx;
+            -webkit-transition: all 0.2s ease;
+            transition: all 0.2s ease;
+            z-index: 1;
+          }
+
+          &.checked .label{
+            left: 66rpx;
+          }
+
+          text{
+            text-align: center;
+            display: inline-block;
+            font-size: 24rpx;
+            color: #666666;
+            height: 44rpx;
+            line-height: 44rpx;
+            width: 68rpx;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            &.checked{
+              /*width: 72rpx;
+              background-color: #FF8000;*/
+              color: #fff;
+              /*border-radius: 22rpx;*/
+            }
+          }
+        }
+      }
+
+      .freight{
+        border-top: 1px solid #E5E5E5;
+        padding: 20rpx;
+        .lableName{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+        .price{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #FF8000;
+          padding-left: 20rpx;
+        }
+      }
+      .storeAddress{
+        border-top: 1px solid #E5E5E5;
+        padding: 20rpx;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        .lableName{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #333333;
+          display: inline-block;
+          width: 244rpx;
+        }
+        .address{
+          display: inline-block;
+          flex: 1;
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+      }
+
+    }
+
+    .devBox{
+      margin-top: 20rpx;
+      background-color: #ffffff;
+      .dateBox{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 20rpx 50rpx;
+        border-bottom: 1px solid #EFEFF4;
+        .useBeginDate{
+          width: 144rpx;
+          text-align: center;
+          .label{
+            font-size: 24rpx;
+            color: #09BB07;
+            line-height: 40rpx;
+          }
+          .date{
+            font-size: 32rpx;
+            color: #333333;
+            line-height: 50rpx;
+            position: relative;
+            text{
+              font-size: 32rpx;
+              color: #333333;
+              line-height: 46rpx;
+            }
+
+            .shape{
+              width: 34rpx;
+              height: 34rpx;
+              position: absolute;
+              right: -30rpx;
+              top:50%;
+              margin-top: -17rpx;
+            }
+          }
+          .time{
+
+            font-size: 24rpx;
+            color: #999999;
+            line-height: 32rpx;
+            height: 32rpx;
+          }
+        }
+        .useCenterDays{
+          width: 244rpx;
+          text-align: center;
+          margin-left: 32rpx;
+          .days{
+            font-size: 32rpx;
+            line-height: 46rpx;
+            color: #999999;
+          }
+          .line{
+            width: 244rpx;
+            height: 18rpx;
+            display: block;
+          }
+        }
+        .useEndDate{
+          width: 144rpx;
+          text-align: center;
+          .label{
+            font-size: 24rpx;
+            color: #FF8000 ;
+            line-height: 40rpx;
+          }
+          .date{
+            font-size: 32rpx;
+            color: #333333;
+            line-height: 46rpx;
+            position: relative;
+            text{
+              font-size: 32rpx;
+              color: #333333;
+              line-height: 46rpx;
+            }
+
+            .shape{
+              width: 34rpx;
+              height: 34rpx;
+              position: absolute;
+              right: -30rpx;
+              top:50%;
+              margin-top: -17rpx;
+            }
+          }
+          .time{
+            font-size: 24rpx;
+            color: #999999;
+            line-height: 32rpx;
+            height: 32rpx;
+          }
+        }
+      }
+      .devListBox{
+        .product_list {
+          .item {
+            display:flex;
+            flex-direction:row;
+            background:#fff;
+            padding:20rpx;
+            height:auto;
+            width:auto;
+            border-bottom: 1px solid #EFEFF4;
+            .img {
+              width:220rpx;
+              height:160rpx;
+              background:#DBDBDB;
+              margin-left:0rpx;
+            }
+            .info {
+              flex-direction:column;
+              flex:1;
+              padding:0 30rpx;
+              padding-right:0;
+              position: relative;
+              height:160rpx;
+              .name {
+                font-size:32rpx;
+                color:#333333;
+                .discountDesc{
+                  font-size: 18rpx;
+                  color: #ffffff;
+                  background: #FF5D5D;
+                  border-radius: 8rpx;
+                  width: 60rpx;
+                  height: 28rpx;
+                  text-align: center;
+                  line-height: 28rpx;
+                  display: inline-block;
+                  vertical-align: top;
+                  margin-left: 15rpx;
+                  margin-top: 10rpx;
+                }
+              }
+
+              .attribute {
+                font-size:24rpx;
+                color:#979797;
+                padding:20rpx 10rpx 18rpx 0;
+                letter-spacing:0;
+              }
+
+              .bottom {
+                .priceTotal {
+                  flex-direction:row;
+                  display:flex;
+                  flex: 1;
+                  .price {
+                    font-size:20rpx;
+                    color: #333333;
+                    text {
+                      font-size:34rpx;
+                    }
+                  }
+
+                  .price2 {
+                    font-size:20rpx;
+                    color: #333333;
+                    letter-spacing: 0;
+                    margin-left: 30rpx;
+                    text {
+                      font-size: 34rpx;
+                    }
+                  }
+                }
+
+              }
+
+            }
+          }
+
+          .buy {
+            width: 156rpx;
+            text-align: center;
+            vertical-align: top;
+            position: absolute;
+            top: 50%;
+            margin-top: -23rpx;
+            right: 0;
+            text-align: right;
+            .plus{
+              width: 48rpx;
+              height: 48rpx;
+              vertical-align: top;
+            }
+            text{
+              width: 60rpx;
+              text-align: center;
+              font-size: 32rpx;
+              line-height: 48rpx;
+              height: 48rpx;
+              color: #45474F;
+              vertical-align: top;
+              display:inline-block;
+            }
+            input{
+              width: 60rpx;
+              text-align: center;
+              font-size: 32rpx;
+              line-height: 48rpx;
+              height: 48rpx;
+              color: #45474F;
+              vertical-align: top;
+              display:inline-block;
+            }
+            .reduce{
+              width: 48rpx;
+              height: 48rpx;
+              vertical-align: top;
+            }
+          }
+        }
+      }
+      .priceBox{
+        padding: 20rpx;
+        .lableName{
+          font-size: 34rpx;
+          color: #333333;
+          line-height: 48rpx;
+        }
+        .price{
+          font-size: 34rpx;
+          line-height: 48rpx;
+          color: #FF8000;
+          padding-left: 20rpx;
+        }
+      }
+    }
+
+    .creditScoreBox{
+      background-color: #FFFFFF;
+      margin-top: 20rpx;
+      .titleBox{
+        display: flex;
+        flex-direction: row;
+        /*justify-content: space-between;*/
+        padding: 0 20rpx;
+        border-bottom: 1px solid #e5e5e5;
+        align-items: center;
+        image{
+          width:30rpx;
+          height:30rpx;
+        }
+        .title{
+          color: #333;
+          font-size: 34rpx;
+          padding: 20rpx 0;
+        }
+        .score{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          text{
+            padding: 20rpx 0;
+            color: #333333;
+            text{
+              color:#FF8000;
+            }
+          }
+          image{
+            width: 26rpx;
+            height: 26rpx;
+          }
+        }
+      }
+      .creditScoreContent{
+        padding: 20rpx;
+        padding-bottom: 30rpx;
+        .tip{
+          color: #FF8000;
+          font-size: 26rpx;
+        }
+        .listRight{
+          display: flex;
+          flex-direction: row;
+          margin-top: 15rpx;
+          .item{
+            border: 1px solid #ff8000;
+            padding: 0 10rpx;
+            border-radius: 25rpx;
+            height: 50rpx;
+            line-height: 50rpx;
+            text-align: center;
+            color: #FF8000;
+            font-size: 26rpx;
+            margin-left: 20rpx;
+            &:first-child{
+              margin-left: 0;
+            }
+          }
+        }
+      }
+    }
+
+    .remarksBox{
+      background-color: #ffffff;
+      margin-top: 20rpx;
+      padding: 20rpx;
+      input{
+        font-size: 26rpx;
+        text-align: left;
+        color: #333333;
+        padding-bottom:80rpx;
+      }
+      .placeholder{
+        line-height: 36px;
+        color: #979797;
+        font-size: 26rpx;
+        text-align: left;
+      }
+    }
+
+    .submitBtnBox{
+      position: fixed;
+      z-index:2;
+      width: 100%;
+      left: 0;
+      bottom: 0;
+      height: 98rpx;
+      display: flex;
+      flex-direction: row;
+      background-color: #ffffff;
+      .priceInfo{
+        flex: 1;
+        padding: 12rpx 20rpx;
+        border-top: 1px solid #E5E5E5;
+        .sumInfo{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          .labelName{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #333333;
+            font-size: 34rpx;
+          }
+          .price{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #FF8000;
+            font-size: 34rpx;
+            margin-left: 20rpx;
+          }
+          .tips{
+            margin-left: 15rpx;
+            width: 30rpx;
+            height: 30rpx;
+          }
+        }
+        .tipText{
+          height: 26rpx;
+          line-height: 26rpx;
+          color: #B2B2B2;
+          font-size: 18rpx;
+        }
+      }
+      .btn_yellow{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#FF8000;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+      .btn_gray{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#B2B2B2;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+    }
+  }
+
+
+</style>

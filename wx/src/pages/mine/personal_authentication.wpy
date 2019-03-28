@@ -1,0 +1,516 @@
+<template>
+  <form bindsubmit="formSubmit">
+
+  <view class="personalAuthenticationWrap {{ isIphoneX?'iphoneXClassPB':'' }}">
+      <view class="imgBox">
+        <view class="IDImg1" @tap="uploadImg1">
+          <image class="IDImgZ" src="{{ IDImgZ ? IDImgZ : '../../images/img_sfzzm.png' }}"></image>
+          <image class="cameraIcon" src="../../images/icon_scsfz.png"></image>
+          <input type="text" style="display: none;" value="{{IDImgZ}}" name="IDImgZ" />
+        </view>
+        <view class="IDImg2" @tap="uploadImg2">
+          <image class="IDImgF" src="{{ IDImgF ? IDImgF : '../../images/img_sfzfm.png' }}" ></image>
+          <image class="cameraIcon" src="../../images/icon_scsfz.png"></image>
+          <input type="text" style="display: none;" name="IDImgF" value="{{IDImgF}}" />
+        </view>
+      </view>
+
+      <view class="tips">
+        <image src="../../images/icon_ts.png"></image><text>为了增加审核通过率，请尽量保证照片完整清晰</text>
+      </view>
+
+      <view class="backInfo">
+        <view class="labelItem">
+          <view class="lableName">姓名</view>
+          <view class="lableValue">
+            <input name="name" value="{{name}}" class="value" placeholder-class="placeholder" placeholder="拍照自动识别" type="text" disabled="{{ (name && name!='')? false:true }}" bindinput="editName" />
+          </view>
+        </view>
+        <view class="labelItem">
+          <view class="lableName">身份证号</view>
+          <view class="lableValue">
+            <input name="identity" value="{{identity}}" class="value" placeholder-class="placeholder" placeholder="拍照自动识别" type="number" disabled="{{ (identity && identity!='')?false:true }}" bindinput="editIdentity" />
+          </view>
+        </view>
+      </view>
+
+      <view class="agreeBox">
+        <image @tap="checkBoxSelect" class="checkbox" wx:if="{{ agreeChecked }}" src="../../images/icon_yx_checkbox.png"></image>
+        <image @tap="checkBoxSelect" class="checkbox" wx:else src="../../images/icon_wx_checkbox.png"></image>
+        <view class="agreeText">
+          <text @tap="checkBoxSelect">我已阅读并同意</text>
+          <view @tap="jumpUserAuth">用户信息授权协议</view>
+        </view>
+      </view>
+
+      <view class="bottomButton {{ isIphoneX?'iphoneXClass':'' }}">
+        <button class="lineSubmit" formType="submit">确认无误，提交</button>
+      </view>
+    </view>
+  </form>
+
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '../../api/api';
+import tip from '../../utils/tip';
+import WxValidate from '../../libs/WxValidate';
+import {USER_SPECICAL_INFO} from '../../utils/constant';
+let uploadUrl = api.apiMall+'/api-crm/api/v2/auth/user/verify/ocrIDCard';
+let uploadFiel = api.apiMall +'/api-oss/api/v2/oss/upload';
+let userSpecicalInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+export default class Index extends wepy.page {
+  config = {
+    navigationBarTitleText: '个人认证',
+  };
+
+  data = {
+    isIphoneX:false,
+    "identity": "",// 证件号，目前只支持中国大陆身份证号 [必填] 最大长度30
+    "mobile": "", // 手机号码 [选填]
+    "name": "" , // 姓名 [必填] 最大长度50
+    "images":[this.IDImgZ,this.IDImgF], // [必填] 数组 Base64
+    "IDImgZ":"", // 身份证正面
+    "IDImgF":"", // 身份证反面
+    "fromUrl":"",
+    "toUrl":"",
+    issueBy:'',
+    validate:'',
+    agreeChecked:false
+  };
+
+  async onLoad() {
+    this.isIphoneX = this.$parent.globalData.isIphoneX;
+    let pages = getCurrentPages();    //获取加载的页面
+    let currentPage = pages[pages.length - 1];   //获取当前页面的对象
+    let url = currentPage.route;   //当前页面url
+    let options = currentPage.options;   //如果要获取
+    this.fromUrl = pages[pages.length - 2].route;
+    if(this.fromUrl == "pages/main/order"){
+      this.toUrl = "pages/order/create_sign_person?orderCode="+currentPage.options.orderCode;
+    }else if(this.fromUrl == "pages/order/order_detail"){
+      this.toUrl = "pages/order/create_sign_person?orderCode="+currentPage.options.orderCode;
+    }else if(this.fromUrl == "pages/order/place_order"){
+      this.toUrl = "pages/order/order_detail?orderCode="+currentPage.options.orderCode;
+    }else if(this.fromUrl == "pages/main/home"){
+      this.toUrl = "pages/main/home"
+    }else{
+      this.toUrl = "pages/mine/personal_authentication_info";
+    }
+    await this.init();
+  }
+
+  async onUnload(){
+
+  }
+
+  async onShow(){
+
+  }
+
+  // 页面初始化
+  async init(){
+    this.initWxValidate()
+  }
+
+  // 从哪个页面来的
+  async fromUrl(){
+
+  }
+
+  //注册
+  initWxValidate(){
+    this.WxValidate = new WxValidate({
+      IDImgZ:{required: true},
+      IDImgF:{ required: true },
+      name:{ required: true},
+      identity: { required: true }
+    }, {
+      IDImgZ: { required: '请上传身份证正面照', },
+      IDImgF:{ required: "请上传身份证背面照" },
+      name:{ required: '请输入姓名', },
+      identity:{ required: "请输入身份证号" }
+    });
+  }
+
+  methods = {
+    async uploadImg1(){
+      let that = this;
+      let res = await new Promise((resolve)=>{
+        wx.chooseImage({
+          count: 1, // 默认9
+          sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+          sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+          success: function (res) {
+            resolve(res);
+          }
+        });
+      });
+      if( res && res.errMsg == 'chooseImage:ok'){
+        // 返回选定照片的本地文件路径列表，tempFilePath可以作为img标签的src属性显示图片
+        var tempFilePaths = res.tempFilePaths;
+        that.IDImgZ = tempFilePaths[0];
+        that.$apply();
+        tip.loading('识别中..');
+        wx.uploadFile({
+          url: uploadUrl,
+          filePath: that.IDImgZ,
+          name:'file',//这里根据自己的实际情况改
+          header: {
+            // 'content-type':'multipart/form-data'
+            "REQUEST-SOURCE":"1",
+            "X-Auth-Token":userSpecicalInfo.userInfo.tokenId
+          },
+          formData:{},//这里是上传图片时一起上传的数据
+          success:(res)=>{
+            res =  JSON.parse(res.data);
+            tip.loaded();
+            if(res && res.errCode == 0){
+              console.log(res);
+              that.name = res.data.realName;
+              that.identity = res.data.idcardNum;
+              that.issueBy = res.data.issueBy;
+              that.validate = res.data.validate;
+              that.$apply();
+            }else{
+              that.IDImgZ = ''
+              wx.showModal({
+                content: '识别失败，请重新上传',
+                showCancel: false,
+                confirmColor: '#FF8000',
+                success: res=>{}
+              });
+              that.$apply();
+            }
+          },
+          fail:(err)=>{
+            that.IDImgZ = ''
+            wx.showModal({
+              content: '识别失败，请重新上传',
+              showCancel: false,
+              confirmColor: '#FF8000',
+              success: res=>{}
+            });
+            that.$apply();
+          }
+        });
+      }
+    },
+
+    uploadImg2(){
+      var that = this;
+      wx.chooseImage({
+        count: 1, // 默认9
+        sizeType: ['original', 'compressed'], // 可以指定是原图还是压缩图，默认二者都有
+        sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+        success: function (res) {
+          // 返回选定照片的本地文件路径列表，tempFilePath可以作为img标签的src属性显示图片
+          var tempFilePaths = res.tempFilePaths
+          that.IDImgF = tempFilePaths[0];
+          that.$apply();
+        }
+      });
+    },
+
+    //修改名字
+    editName(e){
+      let that = this;
+      that.name = e.detail.value;
+      that.$apply();
+    },
+
+    //修改身份证
+    editIdentity(e){
+      let that = this;
+      that.identity = e.detail.value;
+      that.$apply();
+    },
+
+    //提交
+    async formSubmit(e){
+      let that = this;
+      console.log(that.identity,that.name,that.IDImgZ,that.IDImgF);
+
+
+
+      //提交错误
+      if (!this.WxValidate.checkForm(e)) {
+        const errors = this.WxValidate.errorList[0]
+        // tip.error(`${errors.msg} `);
+        wx.showModal({
+          content: `${errors.msg}`,
+          showCancel: false,
+          confirmColor: '#FF8000',
+          success: res=>{if (res.confirm) {}}
+        })
+        return false
+      }
+
+      if(!this.agreeChecked){
+        wx.showModal({
+          content: `请阅读并同意'用户信息授权协议'`,
+          showCancel: false,
+          confirmColor: '#FF8000',
+          success: res=>{if (res.confirm) {}}
+        })
+        return false
+      }
+
+      tip.loading('正在提交...');
+      let userId =  userSpecicalInfo.userInfo.userId;
+      let pathZ = await new Promise((resolve)=>{
+        wx.uploadFile({
+          url: uploadFiel,
+          filePath: that.IDImgZ,
+          name:'file',//这里根据自己的实际情况改
+          header: {
+            // 'content-type':'multipart/form-data'
+            "REQUEST-SOURCE":"1",
+            "X-Auth-Token":userSpecicalInfo.userInfo.tokenId
+          },
+          formData:{},//这里是上传图片时一起上传的数据
+          success:(res)=>{
+            if(res && res.data){
+              res =  JSON.parse(res.data);
+              if(res && res.errCode == 0){
+                resolve(res.data.path);
+              }
+            }
+          }
+        });
+      });
+
+      let pathF = await new Promise((resolve)=>{
+        wx.uploadFile({
+          url: uploadFiel,
+          filePath: that.IDImgF,
+          name:'file',//这里根据自己的实际情况改
+          header: {
+            // 'content-type':'multipart/form-data'
+            "REQUEST-SOURCE":"1",
+            "X-Auth-Token":userSpecicalInfo.userInfo.tokenId
+          },
+          formData:{},//这里是上传图片时一起上传的数据
+          success:(res)=>{
+            if(res && res.data){
+              res =  JSON.parse(res.data);
+              if(res && res.errCode == 0){
+                resolve(res.data.path);
+              }
+            }
+          }
+        });
+      });
+
+      let json = await api.identityd({
+        query:{
+          "identity": that.identity,
+          "name": that.name , // 姓名 [必填] 最大长度50
+          "images":[pathZ,pathF], // [必填] 数组 Base64
+          "idcardNum":that.identity,
+          "mobile":userSpecicalInfo.userInfo.phoneNum,
+          "realName":that.name,
+          "userId":userId,
+          "issueBy":'', //签发机关
+          "validate":'' //有效期
+        },
+        method:"POST"
+      });
+      if(json && json.data && (json.data.errCode == 0)){
+          tip.success('认证成功！',800).then(()=>{
+            if(that.toUrl && that.toUrl.indexOf('pages/order/order_detail')>-1){
+              //跳转详情
+              wx.redirectTo({
+                url: '/'+that.toUrl
+              })
+            }else if(that.toUrl && that.toUrl.indexOf('pages/main/home')>-1){
+              wx.switchTab({
+                url: '/'+that.toUrl
+              })
+            }else{
+              //跳转详情
+              wx.switchTab({
+                url: '/pages/main/mine'
+              })
+            }
+          })
+      }else{
+        tip.loaded();
+      }
+
+    },
+
+    // 跳转用户授权协议
+    jumpUserAuth(){
+      wx.navigateTo({
+        url: '/pages/mine/personal_authentication_rule'
+      })
+    },
+
+    //
+    checkBoxSelect(){
+        this.agreeChecked = !this.agreeChecked;
+        this.$apply();
+    }
+
+  }
+
+}
+
+</script>
+<style lang="less">
+.personalAuthenticationWrap{
+  padding-bottom: 98rpx;
+  .imgBox {
+    padding: 0 69rpx;
+    .IDImg1,.IDImg2{
+      margin-top: 20rpx;
+      position: relative;
+    }
+
+    .cameraIcon{
+      width: 100rpx;
+      height: 80rpx;
+      position: absolute;
+      left: 50%;
+      margin-left: -50rpx;
+      top: 50%;
+      margin-top: -40rpx;
+    }
+    .IDImgZ{
+      width: 613rpx;
+      height: 370rpx;
+    }
+    .IDImgF{
+      width: 613rpx;
+      height: 370rpx;
+    }
+  }
+
+  .tips{
+    text-align: center;
+    height: 32rpx;
+    line-height: 32rpx;
+    vertical-align: middle;
+    margin-top: 30rpx;
+    image{
+      width: 32rpx;
+      height: 32rpx;
+      display: inline-block;
+    }
+    text{
+      font-style: 24rpx;
+      color: #747474;
+      display: inline-block;
+      vertical-align:top;
+      margin-left: 10rpx;
+    }
+  }
+
+  .backInfo{
+    margin-top: 20rpx;
+    background-color: #ffffff;
+    margin-bottom: 20rpx;
+    .labelItem {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 0 0 20rpx;
+      border-bottom: 1px solid #E5E5E5;
+
+      &:last-child{
+        border-bottom: 0;
+      }
+    }
+    .lableName {
+      width: 136rpx;
+      line-height: 48rpx;
+      color: #000;
+      font-size: 34rpx;
+      padding: 20rpx 0;
+    }
+
+    .lableValue {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      flex: 1;
+      text-align: right;
+      line-height: 48rpx;
+      color: #000;
+      font-size: 34rpx;
+      margin-left: 44rpx;
+      position: relative;
+      .value {
+        flex: 1;
+        color: #000;
+        padding: 20rpx 20rpx 20rpx 0;
+        font-size: 34rpx;
+        line-height: 48rpx;
+        /*//min-height: 48rpx;*/
+      }
+      .placeholder {
+        font-size: 34rpx;
+        z-index: 100;
+        color: #B2B2B2;
+        line-height: 48rpx;
+        margin-left: 2rpx;
+      }
+    }
+  }
+
+  .agreeBox{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 34rpx;
+    .checkbox{
+      width: 32rpx;
+      height: 32rpx;
+      margin-right: 10rpx;
+    }
+    .agreeText{
+      display: flex;
+      flex-direction: row;
+      height: 42rpx;
+      line-height: 42rpx;
+      color: #999999;
+      font-size: 30rpx;
+      text-align: center;
+      view{
+        height: 42rpx;
+        line-height: 42rpx;
+        color: #63759C;
+        font-size: 30rpx;
+        text-align: center;
+      }
+    }
+  }
+
+  .bottomButton{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 200;
+    .lineSubmit{
+      width: 100%;
+      height: 98rpx;
+      font-size: 36rpx;
+      text-align: center;
+      color: #ffffff;
+      background-color:#FF8000;
+      border: 0;
+      border-radius:0;
+      &:before,&:after{
+        border: 0;
+      }
+    }
+  }
+
+}
+</style>

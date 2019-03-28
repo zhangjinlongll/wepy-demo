@@ -1,0 +1,305 @@
+<template>
+  <view class="deviceDetailWrap" wx:if="{{ pageShow }}">
+    <view class="tipRules">
+      <text> <text>租金规则：</text>{{ rentRulesTip }}</text>
+    </view>
+    <view class="deviceDetailList">
+      <view class="item" wx:for="{{list}}" wx:key="dev" wx:for-index="index" wx:for-item="item">
+        <view class="deviceDetailHead">
+          <view class="title">设备编号：{{ item.devCode }}</view>
+          <view class="states" style="color:#747474" wx:if="{{ item.devStatus == 1 }}">已退租</view>
+          <view class="states" style="color:#0BB024" wx:if="{{ item.devStatus == 0 }}">在租</view>
+        </view>
+        <view class="deviceDetailBody">
+          <view>品牌型号：{{ item.brandModel || '' }}</view>
+          <view>起租时间：{{ item.rentDate || '' }}</view>
+          <view>退租时间：{{ item.exitRentDate || '' }}</view>
+        </view>
+        <view class="deviceDetailFoot">
+          <view class="totalPrice">
+            <text>小计  <text>¥{{ item.subTotal || 0 }}</text></text>
+          </view>
+          <view class="endDate">
+            <text wx:if="{{ item.deadline }}">截止到{{ item.deadline }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="submitBtnBox  {{ isIphoneX?'iphoneXClass':'' }}">
+      <view class="priceInfo"  >
+        <view class="sumInfo">
+          <view class="labelName">当前租金</view>
+          <view class="price">¥{{ totalPrice }}</view>
+        </view>
+        <view class="tipText">最终费用，以实际使用天数为准。</view>
+      </view>
+      <button class="btn btn_yellow" @tap="jumpToPay">
+        付  款
+      </button>
+    </view>
+
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  export default class device_detail_list extends wepy.page {
+    config = {
+      navigationBarTitleText: '设备明细',
+      navigationBarBackgroundColor: '#FF8000'
+    };
+
+    components = {
+
+    };
+
+    data = {
+      pageShow:false,
+      isIphoneX:false,
+      fromParams:{},
+      orderCode:'', // 订单编号
+      orderStatus:'', // 订单状态
+      isFristLoad:true, // 是否为第一次加载
+      rentRulesTip:"用车时间超过30天，租金=(月租价÷30)×天数；少于30天，租金=天租价×天数，如果超过月租价，只收取月租价。",
+      list:[],
+
+      // "productModel": null,
+      // "devCode": "JPHD151049",//设备编码
+      // "devStatus": 1,
+      // "brand": null,
+      // "devEnterCode": "FWJ180546962",//进场单
+      // "devExitCode": null,
+      // "selfIdentity": "",//设备自编码
+      // "categoryCode": null,
+      // "shigh": null,
+      // "shighName": null,
+      // "category": null,
+      // "categoryName": null,
+      // "storeCode": null,
+      // "brandModel": "鼎力 JCPT0807HD",//品牌 型号
+      // "rentDate": "2018-05-31 08:00:00",//起租时间
+      // "exitRentDate": "2018-05-31 18:00:00",//退租时间
+      // "subTotal": 300,//小计
+      // "deadline": "2018-05-31 18:00:00"//截止时间
+
+      totalPrice:0
+    };
+
+    onLoad(options) {
+      let that = this;
+      that.isIphoneX = that.$parent.globalData.isIphoneX;
+      that.orderCode = options.orderCode;
+      that.init();
+      this.$apply();
+    }
+
+    onReady(){
+      this.isFristLoad = false;
+      this.$apply();
+    }
+
+    onShow(){
+      //第一次不执行
+      if(!this.isFristLoad){
+        this.init();
+      }
+      this.$apply();
+    }
+
+    onUnload() {
+      this.$apply();
+    }
+
+    methods = {
+      //去支付
+      jumpToPay(){
+        wx.navigateTo({
+          url: '/pages/order/order_start_pay?orderCode=' + this.orderCode
+        })
+      },
+    };
+
+    //页面初始化
+    async init(){
+      await this.getDeviceDetailList()
+    };
+
+    // 获取设备明细接口
+    async getDeviceDetailList(){
+      tip.loading();
+      const result =await api.getDeviceDetailList({
+        query:{orderCode:this.orderCode}
+      })
+      if(result && result.data && result.data.errCode == 0){
+        this.list = result.data.data.devList;
+        this.totalPrice = result.data.data.total;
+      }
+      this.pageShow=true;
+      tip.loaded();
+      this.$apply();
+    }
+
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+  }
+  .deviceDetailWrap{
+    padding-bottom: 99rpx;
+    .tipRules{
+      background-color: #FFF5E6;
+      padding: 16rpx 20rpx;
+      text{
+        font-size: 24rpx;
+        color: #747474;
+        line-height: 32rpx;
+        text{
+          color: #FF8000;
+        }
+      }
+    }
+    .deviceDetailList{
+      .item{
+        background-color: #ffffff;
+        margin-top: 20rpx;
+        &:first-child{
+          margin-top: 0;
+        }
+
+        .deviceDetailHead{
+          padding: 20rpx 20rpx 20rpx 0;
+          margin-left: 20rpx;
+          border-bottom: 1px solid #E5E5E5;
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          .title{
+            font-style: 34rpx;
+            line-height: 48rpx;
+            color: #333333;
+          }
+          .states{
+            font-style: 30rpx;
+            line-height: 48rpx;
+            color: #747474;//#0BB024
+          }
+        }
+        .deviceDetailBody{
+          padding: 10rpx 20rpx;
+          view{
+            font-style: 30rpx;
+            line-height: 46rpx;
+            color: #979797;//#0BB024
+          }
+        }
+        .deviceDetailFoot{
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          padding: 20rpx;
+          border-top: 1px solid #E5E5E5;
+
+          .totalPrice{
+            text{
+              font-size: 34rpx;
+              color: #333333;
+              line-height: 48rpx;
+              text{
+                color: #FF8000;
+              }
+            }
+          }
+          .endDate{
+            font-size: 24rpx;
+            color: #979797;
+            line-height: 48rpx;
+          }
+        }
+      }
+    }
+
+
+    .submitBtnBox{
+      position: fixed;
+      z-index:2;
+      width: 100%;
+      left: 0;
+      bottom: 0;
+      height: 98rpx;
+      display: flex;
+      flex-direction: row;
+      background-color: #ffffff;
+      .priceInfo{
+        flex: 1;
+        padding: 12rpx 20rpx;
+        border-top: 1px solid #E5E5E5;
+        .sumInfo{
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          .labelName{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #333333;
+            font-size: 34rpx;
+          }
+          .price{
+            height: 48rpx;
+            line-height: 48rpx;
+            color: #FF8000;
+            font-size: 34rpx;
+            margin-left: 20rpx;
+          }
+          .tips{
+            margin-left: 15rpx;
+            width: 30rpx;
+            height: 30rpx;
+          }
+        }
+        .tipText{
+          height: 26rpx;
+          line-height: 26rpx;
+          color: #B2B2B2;
+          font-size: 18rpx;
+        }
+      }
+      .btn_yellow{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#FF8000;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+      .btn_gray{
+        width: 240rpx;
+        height: 98rpx;
+        background-color:#B2B2B2;
+        color: #ffffff;
+        font-size: 36rpx;
+        line-height: 98rpx;
+        text-align: center;
+        border: 0;
+        -webkit-border-radius: 0;
+        -moz-border-radius: 0;
+        border-radius: 0;
+        &:before,&:after{
+          border: 0;
+        }
+      }
+    }
+
+  }
+
+</style>

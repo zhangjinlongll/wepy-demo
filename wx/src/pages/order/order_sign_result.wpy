@@ -1,0 +1,240 @@
+<template>
+  <view class="container order_sign_result" wx:if="{{ !e && countDown }}">
+    <image class="payResult_image" src="../../images/icon_cg.png"> </image>
+    <text  class="payResult">恭喜您，设备租赁合同签署成功！</text>
+    <view class="tip">您可以随时在订单详情中查看合同信息</view>
+    <view class="pay_continue" @tap="jumpPay">
+      <image src="../../images/icon_djs_d.png"></image>
+      <text>付款  {{ countDown }}</text>
+      <view class="redLimit">限时满减</view>
+    </view>
+    <view class="back_button" @tap="backOrderDetail">
+      <image src="../../images/icon_fh.png"></image><text>返回订单</text>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from "wepy";
+  import tip from "../../utils/tip";
+  import utils from '../../utils/util';
+  import api from "../../api/api";
+  import { USER_SPECICAL_INFO } from "../../utils/constant";
+  export default class order_sign_result extends wepy.page{
+    config = {
+      navigationBarTitleText: '签署成功',
+    };
+
+    data={
+      orderCode:'',
+      projectName:'',
+      msgId:'',
+      isShow:false,
+      countDown:'',
+      countDownFn:null
+    };
+
+    onLoad(options) {
+      tip.loading();
+      let that = this;
+      if(options && options.orderCode){
+        this.orderCode = options.orderCode;
+        this.projectName = options.projectName;
+        this.msgId = options.msgId;
+      }
+      that.init();
+    }
+
+    async init(){
+      let that = this;
+      let result  = await api.confirmSign({
+        method:"POST",
+        query:{
+          "msgId": this.msgId, //合同编号[必填]
+          "orderId": this.orderCode //订单编号
+        }
+      });
+      if(result && result.data && result.data.errCode == 0){
+        tip.loading();
+        await this.paymentCountdown();
+        this.isShow = false;
+        tip.loaded();
+        this.$apply();
+      }else{
+        this.isShow = true;
+        this.$apply();
+        wx.showModal({
+          content: '签约失败，请重新签约',
+          showCancel: false,
+          confirmColor: '#FF8000',
+          success: res=>{
+            if (res.confirm) {
+              var pagelist = getCurrentPages();
+              wx.navigateBack({delta: pagelist.length-3});
+            }
+          }
+        })
+      }
+      tip.loaded();
+    }
+
+    onUnload(){
+      let back = api.znGetStorageSync('payBack');
+      if(back!='1'){
+        var pagelist = getCurrentPages();
+        if(pagelist && JSON.stringify(pagelist).indexOf('pages/order/order_detail')>-1){
+          wx.navigateBack({delta: 2});
+        }else{
+          wx.navigateBack({delta: 2});
+        }
+      }else {
+        api.znSetStorageSync("payBack","0");
+      }
+      let that = this;
+      clearInterval(that.countDownFn);
+
+    }
+
+    //  付款倒计时
+    async paymentCountdown(){
+      let that = this;
+      let result  = await api.paymentCountdown({
+        query:{
+          orderCode:this.orderCode
+        }
+      });
+
+      if(result && result.data && result.data.errCode == 0){
+        if(result.data.data>0 && (result.data.data - (new Date().getTime())>0)){
+          that.countDownFn = setInterval(function () {
+            var timestamp = new Date().getTime();
+            var endtime = result.data.data;
+            var hours = (utils.countdown(timestamp, endtime).h>9?'':'0')+utils.countdown(timestamp, endtime).h;
+            var minutes = (utils.countdown(timestamp, endtime).minutes>9?'':'0')+utils.countdown(timestamp, endtime).minutes;
+            var s =(utils.countdown(timestamp, endtime).s>9?'':'0')+ utils.countdown(timestamp, endtime).s;
+            that.countDown = hours+':'+minutes+':'+s;
+            that.$apply();
+          },1000);
+        }else{
+          that.countDown = 0;
+        }
+      }
+      that.$apply();
+    }
+
+    methods = {
+      backOrderDetail(){
+        this.onUnload();
+      },
+
+      jumpPay(){
+        wx.navigateTo({
+          url: '/pages/order/order_start_pay?orderCode='+this.orderCode
+        })
+      }
+    };
+
+  }
+</script>
+
+<style lang="less">
+  page{
+    height:100%;
+  }
+.order_sign_result{
+  &.container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f5f5f5;
+  }
+  .back_button{
+    margin-top: 390rpx;
+    text-align: center;
+    line-height: 42rpx;
+    padding: 30rpx 40rpx;
+    image{
+      width: 42rpx;
+      height: 42rpx;
+      vertical-align: sub;
+    }
+    text{
+      padding-left: 12rpx;
+      font-size: 36rpx;
+      line-height: 42rpx;
+      color: #ACA8A8;
+    }
+  }
+
+  .payResult_image{
+    width: 186rpx;
+    height: 186rpx;
+    margin-top: 100rpx;
+  }
+
+  .payResult{
+    width: 80vw;
+    text-align: center;
+    margin-top: 60rpx;
+    line-height: 40rpx;
+    font-size: 40rpx;
+    color: #000000;
+  }
+
+  .pay_continue{
+    line-height:94rpx;
+    width: 670rpx;
+    color: white;
+    text-align: center;
+    margin-top:59rpx;
+    font-size: 36rpx;
+    background-color: #FF8000;
+    border-radius: 10rpx;
+    position: relative;
+    vertical-align:middle;
+    image{
+      width:44rpx;
+      height:44rpx;
+      vertical-align:middle;
+      margin-right: 20rpx;
+    }
+    text{
+      vertical-align:middle;
+    }
+    .redLimit{
+      background-color: #F94747;
+      width: 95rpx;
+      height: 26rpx;
+      line-height: 26rpx;
+      font-size: 20rpx;
+      color: #ffffff;
+      border-radius: 8rpx 0 8rpx 0;
+      overflow: hidden;
+      position:absolute;
+      top:18rpx;
+      right:92rpx;
+    }
+  }
+
+  .pay_back{
+    border-radius: 10rpx;
+    width: 670rpx;
+    line-height:94rpx;
+    font-size: 36rpx;
+    color: #FF8000;
+    text-align: center;
+    margin-top:30rpx;
+    background-color: #ffffff;
+  }
+
+  .tip{
+    font-size: 28rpx;
+    color: #ACA8A8;
+    margin-top: 30rpx;
+
+  }
+}
+
+</style>

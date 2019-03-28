@@ -1,0 +1,763 @@
+<template>
+  <view class="info" wx:if="{{ pageShow }}">
+    <view class="header" @tap="jumpPersonalInformation">
+      <view class="header_content">
+        <image class="avatarUrl" src="{{avatarUrl}}"></image>
+        <view class="nickName cfff">{{nickName}}</view>
+      </view>
+    </view>
+
+    <view class="info_block certificationBox">
+
+      <form @submit.stop="selfCertification" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="item" >
+            <view class="item_content" >
+              <image class="item_img" src="../../images/icon_grrz.png"></image>
+              <view class="text">个人认证</view>
+            </view>
+            <view class="certification">
+              <text wx:if="{{userAuthStatus == 1?true:false}}">已认证</text>
+              <text wx:else style="color:#B2B2B2">去认证</text>
+              <image class="arrow" src="../../images/arrow_left.png"></image>
+            </view>
+          </view>
+        </button>
+      </form>
+
+      <form @submit.stop="companyCertification" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="item" style="margin-left:28rpx;padding-left:0;">
+            <view class="item_content" >
+              <image class="item_img" src="../../images/icon_qyrz.png"></image>
+              <view class="text">企业认证</view>
+            </view>
+            <view class="certification">
+              <text wx:if="{{entAuthStatus == 1?true:false}}">已认证</text>
+              <text wx:else style="color:#B2B2B2">去认证</text>
+              <image class="arrow" src="../../images/arrow_left.png"></image>
+            </view>
+          </view>
+        </button>
+      </form>
+
+    </view>
+
+    <view class="info_block couponBox">
+      <form @submit.stop="toCouponList" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="item" >
+            <view class="item_content" >
+              <image class="item_img" src="../../images/icon_yhq.png"></image>
+              <view class="text">优惠券</view>
+            </view>
+            <view class="couponText">
+              <text style="color:#FF8000" wx-if="{{ couponNum != 0 }}">{{ couponNum }}张</text><text wx-if="{{ couponNum != 0 }}" style="color:#B2B2B2">可用</text>
+              <text style="color:#B2B2B2" wx-if="{{ couponNum == 0 }}">暂无可用</text>
+              <image class="arrow" src="../../images/arrow_left.png"></image>
+            </view>
+          </view>
+        </button>
+      </form>
+    </view>
+
+    <view class="info_block repair">
+      <form @submit.stop="bindrepair" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="item">
+            <view class="item_content" >
+              <image class="item_img" src="../../images/icon_repair.png"></image>
+              <view class="text">报修记录</view>
+            </view>
+            <view class="couponText">
+              <image class="arrow" src="../../images/arrow_left.png" ></image>
+            </view>
+          </view>
+        </button>
+      </form>
+    </view>
+    <!--
+    由于下单流程改造，地址不在此处展示
+    <view class="info_block address">
+      <view class="item" bindtap="toAddressList">
+        <view class="item_content" >
+          <image class="item_img" src="../../images/icon_dz_wd.png"></image>
+          <view class="text">用车地址</view>
+        </view>
+        <view class="couponText">
+          <text style="color:#B2B2B2" ></text>
+          <image class="arrow" src="../../images/arrow_left.png"></image>
+        </view>
+      </view>
+    </view>-->
+
+    <view class="info_block code">
+      <form @submit.stop="bindCode" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="item">
+            <view class="item_content" >
+              <image class="item_img" src="../../images/icon_yam.png"></image>
+              <view class="text">邀请码</view>
+            </view>
+            <view class="couponText">
+              <text>{{ invitationCode }}</text>
+              <image class="arrow" src="../../images/arrow_left.png" wx:if="{{ !invitationCode }}"></image>
+            </view>
+          </view>
+        </button>
+      </form>
+    </view>
+
+    <view class="info_block contactBox">
+      <form @submit.stop="callModel" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="item">
+            <view class="item_content" >
+              <image class="item_img" src="../../images/ico_my_contact.png"></image>
+              <view class="text">客服电话</view>
+            </view>
+            <view class="phonetext">400-805-8558</view>
+          </view>
+        </button>
+      </form>
+    </view>
+
+    <view class="bannerBox" wx:if="{{ redPacketsImage }}">
+      <form @submit.stop="jumpRedPacketsClick({{ redPacketsUrl }})" report-submit="true">
+        <button formType="submit" class='formSubmitBtn'>
+          <image class="redPackets" src="{{ redPacketsImage || '../../images/img_zwt.png' }}" ></image>
+        </button>
+      </form>
+    </view>
+
+    <view class="envBox" wx:if="{{ api !='https://api.zuul.znlhzl.cn' }}">
+      <button @tap="loginOut">退出</button>
+    </view>
+
+    <dialogBox :dialogIsShow.sync="isHide" @sureCb.user="sure"  @cancelCb.user="cancel" hidden="{{ isHide }}" ></dialogBox>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip'
+  import dialogBox from  '../../components/dialog';
+  import {USER_INFO,USER_SPECICAL_INFO} from  '../../utils/constant';
+
+  export default class Index extends wepy.page {
+    config = {
+      navigationBarTitleText: '我的',
+      enablePullDownRefresh: true
+    };
+
+    components={
+      dialogBox:dialogBox
+    };
+
+    data = {
+      pageShow:false,
+      avatarUrl: "",
+      nickName: "",
+      bShowBind:false,
+      systemPlate:{},
+      //v2.0.0 认证
+      "userAuthDesc":"",// 个人用户认证
+      "userAuthStatus":"", // 0: 未认证, 1: 已认证
+      "entAuthDesc":"",// 企业用户认证
+      "entAuthStatus":"", //  0: 未认证, 1: 已认证
+      "idcardNum":"",//身份证号码
+      "mobile":"", // 手机号码
+      "realname":"", // 姓名
+      "invitationCode":"",// 邀请码
+
+      //v2.1.0 优惠券
+      couponNum:0, // 优惠券数量
+      redPacketsImage:'',
+      redPacketsUrl:'',
+      redPacketsStatus:'',
+      isHide:true,
+
+      api:'',
+      //v2.3.5
+      // idcardNum:'',
+      enterpriseId:'',
+
+
+
+    };
+
+    onLoad() {
+      //n tip.loading();
+      this.api = api.apiMall;
+      this.$apply();
+    }
+
+    async onShow(){
+      //n tip.loading();
+      await this.$parent.isCanLogin();
+      await this.init();
+      this.pageShow = true;
+      tip.loaded();
+      this.$apply();
+      console.log('init -- end-- ')
+    }
+
+    // 下拉
+    onPullDownRefresh() {
+      this.init();
+      wx.stopPullDownRefresh();
+      this.$apply();
+    }
+
+    // 页面初始化
+    async init(){
+      let that = this;
+      that.getMyInfo();
+      that.getredpacket();
+    }
+
+    async getMyInfo(){
+      let that = this;
+      let json = await api.znGetStorageSync(USER_INFO).detail.userInfo;
+      that.avatarUrl =json.avatarUrl;
+      that.nickName = json.nickName;
+      // 请求个人信息 接口 获取 认证信息状态
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode == 0){
+        that.userAuthStatus = result.data.data.userAuthStatus; // 0: 未认证, 1: 已认证
+        that.entAuthStatus = result.data.data.entAuthStatus; //  0: 未认证, 1: 已认证
+        that.invitationCode = result.data.data.invitationCode; // 邀请码
+        that.couponNum = result.data.data.validCoupons; // 优惠券数量
+        that.idcardNum = result.data.data.idcardNum; // 身份证号
+        that.enterpriseId = result.data.data.enterpriseId; // 身份证号
+        that.realname = result.data.data.realname; // 身份证号
+        that.mobile = result.data.data.mobile; // 身份证号
+        // that.
+        that.$apply();
+      }
+    }
+
+    // 获取我的mine
+    async getredpacket(){
+      let that = this;
+      let result = await  api.loadInvitePicture();
+      if(result && result.data && result.data.errCode == 0){
+        if(result.data.data && result.data.data.status == 0){
+          that.redPacketsImage = result.data.data.imgUrl;
+          that.redPacketsUrl = result.data.data.url;
+        }
+        that.$apply();
+      }
+    }
+
+    // 获取保修记录
+    async getRepairRecord(){
+      let that = this;
+      let result = await api.getRepairRecord();
+      if(result && result.data && result.data.errCode == 0){
+        return result
+      }else {
+        throw result;
+      }
+    }
+
+    // 保存formId
+    async saveFormId(formId){
+      let result = await api.saveFormId({
+        method:'POST',
+        showError:false,
+        query:{
+          formId:formId
+        }
+      });
+      if(result && result.data && result.data.data &&result.data.errCode === 0){
+        return result.data.data;
+      }else {
+        throw result;
+      }
+    }
+
+    // 获取个人征信积分
+    async getPersonalCreditInfo(){
+      let that = this;
+      let result = await  api.getPersonalCreditInfo({
+        query: {
+          idcard:that.idcardNum,
+          name:that.realname,
+          mobile:that.mobile
+        }
+      });
+      if(result && result.data && result.data.errCode == 0){
+        return result
+      } else {
+        throw result
+      }
+    }
+
+    methods = {
+      callModel(e) {
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        wx.makePhoneCall({
+          phoneNumber: '400-805-8558'
+        })
+      },
+
+      // 个人认证
+      selfCertification(e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        tip.loading();
+        that.$parent.needBindPhone(function(){
+          if(that.userAuthStatus == 1 ){
+            that.getPersonalCreditInfo().then(res=>{
+              tip.loaded();
+              var obj = res.data.data;
+              obj.idcardNum = that.idcardNum;
+              obj.realname = that.realname;
+              obj.mobile = that.mobile;
+              that.$preload(obj);
+              if( res.data.data.riskType == 0){
+                // 黑名单
+                that.$navigate('/pages/mine/credit_info_gray');
+              }else {
+                that.$navigate('/pages/mine/credit_info');
+              }
+            }).catch(error=>{
+              tip.loaded();
+            });
+          }else{
+            tip.loaded();
+            // 未认证 跳转认证
+            wx.navigateTo({
+              // url: '/pages/mine/credit_info'
+              url: '/pages/mine/personal_authentication'
+            });
+          }
+        },'/pages/main/mine');
+      },
+
+      // 企业认证
+      companyCertification(e){
+        let that = this;
+        tip.loading();
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.$parent.needBindPhone(function(){
+          if(that.entAuthStatus == 1 ){
+            // 已认证 跳转详情
+            //tip.alert("跳转详情");
+            wx.navigateTo({
+              // url: '/pages/mine/company_credit_info'
+              url: '/pages/mine/company_authentication_info'
+            });
+          }else{
+            // 未认证 1.跳转认证
+            if(that.userAuthStatus == 0 || that.userAuthStatus == ""){
+              // 企业认证前必须完成个人认证
+              // tip.alert("企业认证前必须完成个人认证");
+              wx.showModal({
+                title: '',
+                content: '请先完成个人认证',
+                showCancel:false,
+                confirmColor:'#FF8000',
+                success: function(res) {
+                  if (res.confirm) {
+                    console.log('用户点击确定');
+                    //tip.alert("跳转个人认证");
+                    wx.navigateTo({
+                      url: '/pages/mine/personal_authentication'
+                    });
+                  }
+                }
+              })
+            }else{
+              // tip.alert("企业认证前必须完成个人认证");
+              //tip.alert("跳转企业认证");
+              wx.navigateTo({
+                url: '/pages/mine/company_authentication'
+              });
+            }
+
+          }
+          tip.loaded()
+        },'/pages/main/mine');
+        tip.loaded()
+
+      },
+
+      //  跳转个人信息
+      jumpPersonalInformation(e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.$parent.needBindPhone(function(){
+          wx.navigateTo({
+            url: '/pages/mine/my_info'
+          });
+        },'/pages/main/mine')
+      },
+
+      // 跳转优惠券列表
+      toCouponList(e){
+        let that = this;
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        wx.navigateTo({
+          url: '/pages/mine/coupon_list'
+        });
+      },
+
+      // 跳转地址列表页
+      toAddressList(e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        let params={
+          type:1,
+          fromUrl:'/pages/main/mine'
+        };
+        that.$parent.needBindPhone(function(){
+          wx.navigateTo({
+            url: '/pages/common/address_list?params=' + encodeURIComponent(JSON.stringify(params))
+          });
+        },'/pages/main/mine')
+      },
+
+      bindrepair(e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.getRepairRecord().then(res=>{
+          that.$preload({
+            data:res.data.data,
+          });
+          that.$navigate('/pages/mine/repair_list');
+        }).catch(error=>{
+          console.log(error,'接口');
+        })
+      },
+
+      bindCode(e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        // if(!that.invitationCode){
+        //   that.isHide = false;
+        //   that.$apply();
+        // }
+
+        that.$parent.needBindPhone(function(){
+          if(!that.invitationCode){
+            that.isHide = false;
+            that.$apply();
+          }
+        },'/pages/main/mine')
+      },
+
+      //sure
+      async sure(val){
+        let that = this;
+        if(!val){
+          wx.showModal({
+            content: '请填写邀请码',
+            showCancel:false,
+            confirmColor:'#FF8000',
+            success: res=>{
+              if (res.confirm) {
+              }
+            }
+          })
+          return false;
+        }
+        this.isHide = true;
+        tip.loading('正在提交..')
+        let result = await api.setInvitationCode({
+          method:"POST",
+          query:{
+            invitationCode:val
+          }
+        });
+        if(result && result.data && result.data.errCode == 0){
+          if(result.data.data == 1){
+            tip.success('提交成功！',800).then(()=>{
+              that.init();
+            });
+          }
+        }else {
+          tip.loaded();
+        }
+
+        this.$apply();
+      },
+
+      cancel(){
+        this.isHide = true;
+        this.$apply();
+      },
+
+      // 红包跳转
+      jumpRedPacketsClick(links,e){
+        let that = this;
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        if(!links){
+          return false
+        }
+        let userInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+        /* if(userInfo && userInfo.userInfo.isActive == 0 ){
+           wx.navigateTo({
+             url: 'pages/main/login'
+           })
+         }*/
+        let params = {
+          openId:userInfo && userInfo.userInfo && userInfo.userInfo.openId,
+          type:0,
+          fromUrl:'/pages/main/home'
+        };
+        wx.navigateTo({
+          url: `${links}?params=${encodeURIComponent(JSON.stringify(params))}`
+        })
+      },
+
+      //登出
+      loginOut(){
+        wx.clearStorage()
+        try {
+          wx.clearStorageSync()
+        } catch(e) {
+          try {
+            wx.clearStorageSync()
+          } catch(e) {
+            // Do something when catch error
+          }
+        }
+        wx.reLaunch({
+          url: '/pages/main/authorization'
+        });
+      }
+    }
+  }
+
+
+
+</script>
+<style lang="less">
+  .header {
+    background: #FF8000;
+    height: 240rpx;
+    width: 100%;
+  }
+
+  .formSubmitBtn{
+    margin:0;
+    padding:0;
+    display:inherit;
+    text-align:inherit;
+    font-size:inherit;
+    line-height:inherit;
+    border:0;
+    background:inherit;
+  }
+
+  .header_content {
+
+    display: flex;
+    width: 100%;
+    //margin: 0 auto;
+    text-align: center;
+    padding-top: 60rpx;
+  }
+
+  .avatarUrl {
+    width: 150rpx;
+    height: 150rpx;
+    border-radius: 75px;
+    margin-left: 20rpx;
+    margin-bottom: 20rpx;
+
+  }
+
+  .nickName {
+    font-size: 38rpx;
+    margin-left: 35rpx;
+    margin-top: 40rpx;
+  }
+
+  .info_block {
+    //margin-top: 10rpx;
+    background-color: #ffffff;
+    border-bottom: 1rpx solid #E5E5E5;
+    .item {
+      border-top: 1rpx solid #E5E5E5;
+      background: #fff;
+      padding: 20rpx 28rpx;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .item:last-child {
+      margin-left:28rpx;
+      padding-left:0;
+
+    }
+    .item:first-child {
+      margin-left:0rpx;
+      padding-left:28rpx;
+
+    }
+    .item_content {
+      display: flex;
+      align-items: center;
+
+    }
+    .text {
+      margin-left: 20rpx;
+      font-size: 34rpx;
+      color: #000;
+    }
+    .phonetext {
+      float: right;
+      margin-right:20rpx;
+      font-size: 34rpx;
+      color: #576B95;
+    }
+
+
+    .item_img {
+      width: 42rpx;
+      height: 42rpx;
+    }
+    .couponText{
+      .arrow {
+        width: 16rpx;
+        height: 25rpx;
+      }
+    }
+    .tip {
+      color: #999;
+      font-size: 24rpx;
+      margin-top: 20rpx;
+      margin-left: 60rpx;
+    }
+  }
+  .certificationBox{
+    margin-bottom: 20rpx;
+    background-color: #FFF;
+    .certification{
+      text{
+        font-size: 34rpx;
+      }
+      .arrow {
+        width: 26rpx;
+        height: 25rpx;
+        margin-left: 10rpx;
+      }
+    }
+  }
+
+  .couponBox{
+    margin-bottom: 20rpx;
+    .couponText{
+      text{
+        font-size: 34rpx;
+      }
+      .arrow {
+        width: 26rpx;
+        height: 25rpx;
+        margin-left: 10rpx;
+      }
+    }
+  }
+
+  .address{
+    margin-bottom: 20rpx;
+    .couponText{
+      text{
+        font-size: 34rpx;
+      }
+      .arrow {
+        width: 26rpx;
+        height: 25rpx;
+        margin-left: 10rpx;
+      }
+    }
+  }
+  .repair{
+    border-bottom: 0;
+    .item{
+      .arrow{
+        width:26rpx;
+        height:25rpx;
+        margin-left:10rpx;
+
+      }
+    }
+
+  }
+
+
+  .contactBox{
+    .item:first-child {
+      margin-left:28rpx;
+      padding-left:0rpx;
+      padding-right: 0;
+
+    }
+  }
+  .code{
+    border-bottom: 0;
+    .item{
+      margin-left: 28rpx!important;
+      padding-left: 0rpx!important;;
+    }
+
+    .couponText{
+      text{
+        font-size: 34rpx;
+        color: #666666;
+      }
+      .arrow {
+        width: 26rpx;
+        height: 25rpx;
+        margin-left: 10rpx;
+      }
+    }
+  }
+  .bannerBox{
+    .redPackets{
+      width: 750rpx;
+      height: 200rpx;
+      background-color: #ccc;
+    }
+  }
+
+</style>

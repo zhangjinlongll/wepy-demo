@@ -1,0 +1,302 @@
+
+<template>
+  <view class="creditWrap" wx:if="{{ pageShow }}">
+      <view class="contentHead">
+        <image class="ldt" src="../../images/img_ld2.png"></image>
+
+        <view class="score">当前分值：80</view>
+
+        <!--<image class="dw-bg" src="../../images/img_dw.png"></image>-->
+
+        <!--<view class="downBox" @tap="jumpRule">信用准则</view>-->
+      </view>
+
+      <view class="ranking">
+        <image src="../../images/img_pm2.png"></image>
+      </view>
+
+      <view class="myRight" style="padding-top: 60rpx">
+        <view class="title">企业权益</view>
+        <view class="iconList">
+          <view class="item">
+            <image class="icon" src="../../images/right_money.png"></image>
+            <view class="text">免押金</view>
+            <view class="tips">信用租车</view>
+          </view>
+          <view class="item">
+            <image class="icon" src="../../images/right_supportability.png"></image>
+            <view class="text">用车保障</view>
+            <view class="tips">优先保证用车</view>
+          </view>
+          <view class="item">
+            <image class="icon" src="../../images/right_guarantee.png"></image>
+            <view class="text">时效保障</view>
+            <view class="tips">信用租车</view>
+          </view>
+        </view>
+      </view>
+
+    <view class="myRight noRight">
+      <view class="title">信用极好</view>
+      <view class="iconList">
+        <view class="item">
+          <image class="icon" src="../../images/right_date_yellow.png"></image>
+          <view class="text">30天账期</view>
+          <view class="tips">资金周转更灵活</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/right_money_yellow.png"></image>
+          <view class="text">免押金</view>
+          <view class="tips">信用租车</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/right_supportability_yellow.png"></image>
+          <view class="text">用车保障</view>
+          <view class="tips">优先保证用车</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/right_guarantee_yellow.png"></image>
+          <view class="text">时效保障</view>
+          <view class="tips">信用租车</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="myRight noRight">
+      <view class="title">信用优秀</view>
+      <view class="iconList">
+        <view class="item">
+          <image class="icon" src="../../images/right_money_yellow.png"></image>
+          <view class="text">免押金</view>
+          <view class="tips">信用租车</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/right_supportability_yellow.png"></image>
+          <view class="text">用车保障</view>
+          <view class="tips">优先保证用车</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/right_guarantee_yellow.png"></image>
+          <view class="text">时效保障</view>
+          <view class="tips">信用租车</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="myRight noRight">
+      <view class="title">信用良好</view>
+      <view class="iconList">
+        <view class="item">
+          <image class="icon" src="../../images/right_money_yellow.png"></image>
+          <view class="text">10%押金</view>
+          <view class="tips">少量押金</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/right_supportability_yellow.png"></image>
+          <view class="text">用车保障</view>
+          <view class="tips">优先保证用车</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="myRight noRight">
+      <view class="title">信用中等</view>
+      <view class="iconList">
+        <view class="item">
+          <image class="icon" src="../../images/right_money_yellow.png"></image>
+          <view class="text">20%押金</view>
+          <view class="tips">少量押金</view>
+        </view>
+      </view>
+    </view>
+
+
+    <view class="myRight noRight blackList">
+      <view class="title">黑名单</view>
+      <view class="iconList">
+        <view class="item">
+          <image class="icon" src="../../images/b_no.png"></image>
+          <view class="text">不予合作</view>
+        </view>
+        <view class="item">
+          <image class="icon" src="../../images/b_notice.png"></image>
+          <view class="text">行业内通报</view>
+        </view>
+        <view class="item" >
+          <image class="icon" src="../../images/b_record.png"></image>
+          <view class="text" style="width:180rpx" >信息提交政府</view>
+        </view>
+      </view>
+    </view>
+
+  </view>
+</template>
+
+<script>
+import wepy from "wepy";
+import api from "../../api/api";
+export default class credit_info extends wepy.page {
+  config = {
+    navigationBarTitleText: '众能联合数字技术有限公司',
+    "enablePullDownRefresh": true
+  };
+
+  data = {
+    pageShow:false,
+    empty_tip_btn_show:false,
+    empty_tip_show:true,
+
+
+  };
+
+  onLoad() {
+    let that = this;
+    this.set_page_show(true);
+    this.$parent.isCanLogin();
+
+  }
+
+
+  // onPullDownRefresh() {
+  //
+  //   wx.stopPullDownRefresh()
+  // }
+
+  set_page_show(show){
+    this.$apply(()=>{
+      this.pageShow = show;
+    });
+  }
+
+  methods = {
+    jumpRule(){
+      wx.navigateTo({
+        url: '/pages/mine/credit_criteria'
+      });
+    }
+  }
+}
+</script>
+
+
+<style lang="less">
+  .creditWrap{
+
+    .contentHead{
+      position: relative;
+      background-color: #FFFFFF;
+      padding-bottom: 15rpx;
+      padding-top: 30rpx;
+
+      .downBox{
+        width: 134rpx;
+        text-align: center;
+        text-indent: 10rpx;
+        height: 46rpx;
+        line-height: 46rpx;
+        border:1px solid #FEB200;
+        border-radius: 23rpx 0 0 23rpx;
+        font-size: 24rpx;
+        color: #ffffff;
+        position: absolute;
+        top: 30rpx;
+        right: 0;
+        z-index: 3;
+      }
+
+      .ldt{
+        display: block;
+        width: 504rpx;
+        height: 386rpx;
+        margin: 0 auto;
+        position: relative;
+        z-index: 2;
+      }
+      .score{
+        text-align: center;
+        color: #FF8000;
+        font-size: 28rpx;
+        margin-top: 10rpx;
+        position: relative;
+        z-index: 2;
+      }
+      .dw-bg{
+        left: 0;
+        position: absolute;
+        bottom: 0;
+        width: 750rpx;
+        height: 104rpx;
+        z-index: 1;
+      }
+    }
+    .ranking{
+      background-color: #FBFBFB;
+      image{
+        position: relative;
+        z-index: 3;
+        width: 750rpx;
+        height: 299rpx;
+      }
+    }
+
+    .tipRules{
+      background-color: #FFF5E6;
+      padding: 10rpx 20rpx;
+      white-space:nowrap;
+      text{
+        white-space:nowrap;
+        font-size: 24rpx;
+        color: #747474;
+        line-height: 32rpx;
+        text{
+          color: #FF8000;
+        }
+      }
+    }
+    .myRight{
+      background-color: #FFFFFF;
+      padding: 0 40rpx;
+      &.noRight{
+        /*margin-top: 30rpx;*/
+        padding-top: 42rpx;
+        background-color: #EFEFEF;
+        .title{
+          color: #333333;
+        }
+      }
+      &.blackList{
+
+      }
+
+      .title{
+        color: #FF8000;
+        font-size: 34rpx;
+      }
+      .iconList{
+        overflow: hidden;
+        .item{
+          float: left;
+          width: 25%;
+          text-align: center;
+          padding: 32rpx 0 46rpx 0;
+          .icon{
+            width: 100rpx;
+            height: 100rpx;
+            display: block;
+            margin: 0 auto;
+          }
+          .text{
+            font-size: 30rpx;
+            color: #343434;
+            margin-top: 20rpx;
+          }
+          .tips{
+            font-size: 24rpx;
+            color: #999999;
+            margin-top: 2rpx;
+          }
+        }
+      }
+    }
+  }
+</style>

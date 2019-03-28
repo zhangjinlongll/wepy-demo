@@ -1,0 +1,689 @@
+<template>
+<view wx:if="{{ pageShow }}">
+  <view wx:if="{{ isLogin}}" class="couponShareWrap">
+    <view class="couponShareHead">
+      <image class="bg" mode="aspectFill" src="../../images/img_fx.png"></image>
+      <image class="icon_logo" src="../../images/icon_logo.png"></image>
+      <view class="content" wx:if="{{ getStatus ===1 || getStatus ===3}}">
+        <image class="price_img" src="https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/wx_mini/img_zt.png"></image>
+        <view class="btn ds_Btn" @tap="use">立即使用</view>
+        <view class="tips">已领取{{ getNum }}张优惠券</view>
+      </view>
+      <view class="content" wx:if="{{ getStatus ===2 }}">
+        <view class="noCoupon">优惠券都被抢光啦</view>
+        <view class="btn ds_Btn" @tap="lookMore">查看更多优惠</view>
+      </view>
+      <view class="content" wx:if="{{ getStatus ===4 }}">
+        <view class="noCoupon">优惠券领取已达上限</view>
+        <view class="btn ds_Btn" @tap="lookMore">查看更多优惠</view>
+      </view>
+      <view class="content" wx:if="{{ getStatus ===5 }}">
+        <view class="noCoupon">活动已过期</view>
+        <view class="btn ds_Btn" @tap="lookMore">查看更多优惠</view>
+      </view>
+
+    </view>
+    <view class="couponShareBody">
+      <view class="title">
+        <view class="line"></view>
+        <view class="titleContent">热门车型</view>
+      </view>
+      <view class="product_list">
+        <view class="item" wx:for="{{hotModels}}" wx:key="pro" wx:for-item="item" @tap="goDetail({{ item.meter.value }},{{ item.category.value }},{{ item.id }})">
+          <image class="img" mode="aspectFill" src="{{ item.file }}"></image>
+          <view class="info">
+            <view class="name">
+              <text>{{ item.meter.name }} {{ item.category.name }}</text>
+              <text class="discountDesc" wx:if="{{item.isSale == 1}}">{{ item.discountDesc }}</text>
+            </view>
+            <!--<view  wx:for="{{item.attrValList}}" wx:key="item">{{item.attrVal}} </view>-->
+            <view class="attribute">{{ item.attrs[0].name }}{{ item.attrs[0].value }} / {{ item.attrs[1].name }}{{ item.attrs[1].value }}</view>
+            <view class="bottom">
+              <view class="priceTotal">
+                <view class="price">￥<text>{{ item.promMonthPrice }}</text> /月</view>
+                <view class="price2">￥<text>{{ item.promDayPrice }}</text>/天</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="btn" @tap="lookMore">查看更多</view>
+    </view>
+    <view class="couponShareFoot">
+      <view class="title" style="line-height: 40rpx;height: 40rpx;color: #fff;font-size: 28rpx;font-weight: 700;margin-bottom: 10rpx">活动规则</view>
+
+      <view style="line-height: 40rpx;color: #fff;font-size: 24rpx;">
+        <text decode="true">{{ rule }}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="shareLoginBox" wx:else>
+    <view class="mask" @tap="cancel" ></view>
+    <image src="https://oss-znlhzl.oss-cn-shanghai.aliyuncs.com/wx_mini/share_bg.png" style="position: fixed;width: inherit;height: inherit;left: 0;right: 0;top: 0;bottom: 0;z-index: 1"></image>
+    <view class="dialogBox">
+      <view class="dialogHead">微信授权</view>
+      <view class="dialogBody">
+        <view class="">众能联合申请获得您的公开信息(头像、昵称等)</view>
+      </view>
+      <view class="dialogFoot">
+        <button open-type="getUserInfo" bindgetuserinfo="getWxUserInfo">授权登录</button>
+      </view>
+    </view>
+  </view>
+</view>
+
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import {
+    USER_SPECICAL_INFO,
+    USER_INFO,
+    USER_CITY,
+  } from "../../utils/constant";
+
+  import {
+    NOTIFI_CITY_CHANGE
+  } from "../../utils/notif_const";
+
+  var WxNotificationCenter = require("../../libs/WxNotificationCenter.js");
+
+  export default class coupon_share extends wepy.page {
+    config = {
+      navigationBarTitleText: '分享优惠券',
+      navigationBarBackgroundColor: '#ffffff',
+      navigationBarTextStyle: 'black',
+    };
+
+    data = {
+      "pageShow": false,
+      "isLogin": false,
+      "getNum": 0, // 该订单下分享券已领取数量
+      "getStatus": 1, // 领取状态 1领取成功，2已领完，3已领取
+      "money": 0, // 优惠券面额
+      "promRuleDesc": "", // 活动规则
+      "hotModels": [],
+      "rule": ""
+    };
+
+    async onLoad(option) {
+
+      let that = this;
+      tip.loading();
+
+      if (option) {
+        this.orderId = option.orderCode;
+      }
+      WxNotificationCenter.addNotification(NOTIFI_CITY_CHANGE, that.cityChanged, that);
+      let wxUserInfo = api.znGetStorageSync(USER_INFO);
+      let isLogin, isAddress;
+      let isAddressAuth = true;
+      if (wxUserInfo) {
+        await that.setLogin();
+      } else {
+        that.isLogin = false;
+        tip.loaded();
+        that.pageShow = true;
+        that.$apply();
+      }
+      that.$apply();
+
+    };
+
+    onUnload() {
+      //移除通知
+      let that = this;
+      WxNotificationCenter.removeNotification(NOTIFI_CITY_CHANGE, that);
+    }
+
+    async init() {
+      let that = this;
+      that.isLogin = true;
+      let userId = api.znGetStorageSync(USER_SPECICAL_INFO).userInfo.userId;
+      const result = await api.getShareInfo({
+        method: "GET",
+        query: {
+          orderId: this.orderId,
+          promType: 1,
+          userId: userId,
+        }
+      });
+      if (result && result.data && result.data.errCode === 0) {
+        that.getNum = result.data.data.getNum;
+        that.getStatus = result.data.data.getStatus;
+        that.money = result.data.data.money;
+        that.promRuleDesc = result.data.data.promRuleDesc;
+        that.hotModels = result.data.data.hotModels;
+
+        const res = await api.getConfig({
+          query: {
+            key: 'cps_share_rule'
+          }
+        })
+        if (res && res.data && res.data.errCode === 0) {
+          that.rule = res.data.data.cfgValue;
+        }
+        tip.loaded();
+        if (this.getStatus === 3) {
+          wx.showModal({
+            content: '您已经领取过该优惠券!',
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res => {
+            }
+          });
+        }
+      }
+      tip.loaded();
+      that.pageShow = true;
+      that.$apply();
+    };
+
+    async getWxUserInfo(res) {
+      let that = this;
+      this.isFirstGetSen = true;
+      if (res.detail.errMsg === 'getUserInfo:ok') {
+        //过滤表情符号
+        if(res && res.detail && res.detail.userInfo && res.detail.userInfo.nickName){
+          res.detail.userInfo.nickName =  res.detail.userInfo.nickName.replace(/\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDE4F]/g, "*");
+        }
+        await api.znSetStorageSync(USER_INFO, res);
+        await that.setLogin();
+      }
+    }
+
+    async setLogin() {
+      let that = this;
+      let isLogin = await that.$parent.reLogin().catch(error => {
+        console.log("relogin error", error);
+        wx.showModal({
+          content: '用户信息授权失败，请联系众能联合客服'
+        });
+      });
+      if (!isLogin) {
+        return false
+      }
+      let isAddress = await that.$parent.getAddress().catch(error => {
+        let cityInfo = api.znGetStorageSync(USER_CITY);
+        if (cityInfo) {
+          return isAddress = true
+        } else {
+          if (error.errMsg === "getLocation:fail auth deny") {
+            wx.showModal({
+              content: '定位授权失败,是否打开定位授权?',
+              success: res => {
+                if (res.confirm) {
+                  wx.openSetting();
+                }
+                if (res.cancel) {
+                  wx.navigateTo({
+                    url: '/pages/common/city_list?city=no'
+                  });
+                }
+              }
+            });
+          } else {
+            wx.showModal({
+              content: '您当前不在服务城市，请选择服务城市',
+              success: res => {
+                if (res.confirm) {
+                  wx.navigateTo({
+                    url: '/pages/common/city_list?city=no'
+                  });
+                }
+              }
+            });
+          }
+        }
+      });
+      if (!isAddress) {
+        return false
+      } else if (isAddress == "getCityInServiceFalse") {
+        let cityInfo = api.znGetStorageSync(USER_CITY);
+        if (cityInfo) {
+          isAddress = true;
+        } else {
+          wx.showModal({
+            content: '您当前不在服务城市，请选择服务城市',
+            success: res => {
+              if (res.confirm) {
+
+                wx.navigateTo({
+                  url: '/pages/common/city_list?city=no'
+                });
+              }
+            }
+          });
+          return false
+        }
+      }
+      if (isLogin && isAddress) {
+        that.init();
+        that.$apply();
+      } else if (isLogin && !isAddress) {
+        wx.showModal({
+          content: '您当前不在服务城市，请选择服务城市',
+          success: res => {
+            if (res.confirm) {
+              wx.navigateTo({
+                url: '/pages/common/city_list?city=no'
+              });
+            }
+          }
+        });
+      } else {
+        wx.showModal({
+          content: '授权失败，请重新授权',
+          success: res => {
+            if (res.confirm) {
+            }
+          }
+        });
+      }
+    }
+
+    cityChanged(newCity) {
+      let that = this.observer;
+      if (newCity) {
+        let cityInfo = {};
+        cityInfo.city = newCity.regionName;
+        cityInfo.cityName = newCity.regionName;
+        cityInfo.cityCode = newCity.regionId;
+        api.znSetStorageSync(USER_CITY, cityInfo)
+      }
+      that.init();
+    }
+
+    methods = {
+      async use() {
+
+        const SPECICAL_INFO = await api.znGetStorageSync(USER_SPECICAL_INFO)
+        if(SPECICAL_INFO){
+          var isActive = SPECICAL_INFO.userInfo.isActive;
+        }else{
+          var isActive = 0;
+        }
+        if(isActive == 1){
+          const json = await api.getOrderList({
+            showLoading: false,
+            query: {
+              pageNo: 1,
+              pageSize: 9999,
+            }
+          });
+          if (json && json.data && (json.data.errCode === 0)) {
+            let Y = json.data.data.list && json.data.data.list.length > 0; // 是否有列表，
+            if (Y) {
+              wx.switchTab({
+                url: '/pages/main/order'
+              });
+            } else {
+              wx.switchTab({
+                url: '/pages/main/home'
+              });
+            }
+          }
+        }else{
+          wx.switchTab({
+            url: '/pages/main/home'
+          });
+        }
+
+      },
+
+      // 查看更多优惠
+      lookMore() {
+        wx.switchTab({
+          url: '/pages/main/home'
+        });
+      },
+
+      // 查看设备详情
+      goDetail(shigh, category, id) {
+        wx.navigateTo({
+          url: "/pages/main/product_detail?shigh=" + shigh + "&category=" + category + "&id=" + id
+        });
+      },
+    }
+  }
+</script>
+<style lang="less">
+  page {
+    background-color: #E13C2A;
+  }
+
+  .couponShareWrap {
+    position: relative;
+  }
+
+  .couponShareHead{
+    text-align: center;
+    height: 531rpx;
+    .bg{
+      width: 750rpx;
+      height: 531rpx;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
+    }
+    .icon_logo{
+      position: absolute;
+      left: 20rpx;
+      top: 20rpx;
+      width: 152rpx;
+      height: 44rpx;
+      z-index: 2;
+    }
+    .content{
+      position: relative;
+      z-index: 2;
+    }
+    .price_img{
+      width: 464rpx;
+      height: 104rpx;
+      padding-top: 92rpx;
+    }
+    .noCoupon{
+      height: 84rpx;
+      font-size: 56rpx;
+      color: #767676;
+      font-weight: 500;
+      padding-top: 113rpx;
+      letter-spacing: 1rpx;
+    }
+    .btn{
+      width: 480rpx;
+      height: 66rpx;
+      line-height: 66rpx;
+      color: #fff;
+      font-size: 30rpx;
+      background-color: #D53828;
+      -webkit-border-radius: 8rpx;
+      -moz-border-radius: 8rpx;
+      border-radius: 8rpx;
+      text-align: center;
+      margin: 20rpx auto 0;
+    }
+    .tips{
+      font-size: 24rpx;
+      text-align: center;
+      color: #767676;
+      margin-top: 10rpx;
+    }
+  }
+
+  .couponShareBody{
+    .title{
+      margin-top: 27rpx;
+      position: relative;
+      text-align: center;
+      .line{
+        width: 460rpx;
+        height: 1px;
+        background-color: #FFF;
+        position: absolute;
+        top: 21rpx;
+        left: 50%;
+        margin-left: -230rpx;
+        z-index: 1;
+      }
+      .titleContent{
+        position: relative;
+        z-index: 1;
+        margin: 0 auto;
+        width: 172rpx;
+        background-color: #E13C2A;
+        font-size: 36rpx;
+        color: #FFF;
+        height: 46rpx;
+        line-height: 36rpx;
+        text-align: center;
+      }
+    }
+
+    .product_list {
+
+      .item {
+        display:flex;
+        flex-direction:row;
+        background:#fff;
+        padding:20rpx;
+        margin:20rpx 20rpx 0;
+        height:auto;
+        width:auto;
+        .img {
+          width:220rpx;
+          height:160rpx;
+          background:#DBDBDB;
+          margin-left:0rpx;
+        }
+        .info {
+          flex-direction:column;
+          flex:1;
+          padding:0 20rpx;
+          padding-right:0;
+          .name {
+            font-size:32rpx;
+            color:#333333;
+            .discountDesc{
+              font-size: 18rpx;
+              color: #ffffff;
+              background: #FF5D5D;
+              border-radius: 8rpx;
+              width: 60rpx;
+              height: 28rpx;
+              text-align: center;
+              line-height: 28rpx;
+              display: inline-block;
+              vertical-align: top;
+              margin-left: 15rpx;
+              margin-top: 10rpx;
+            }
+          }
+
+          .attribute {
+            font-size:24rpx;
+            color:#979797;
+            letter-spacing:1.41rpx;
+            padding:10rpx 10rpx 0;
+            padding-left:0;
+          }
+
+          .bottom {
+            display:flex;
+            flex-direction:row;
+            align-items:center;
+            justify-content:space-between;
+            margin-top: 32rpx;
+            .priceTotal {
+              flex-direction:row;
+              display:flex;
+              .price {
+                font-size:20rpx;
+                color: #FE3F3B;
+                text {
+                  font-size:34rpx;
+                }
+              }
+
+              .price2 {
+                font-size:20rpx;
+                color: #FE3F3B;
+                letter-spacing: 0;
+                margin-left: 30rpx;
+                text {
+                  font-size: 34rpx;
+                }
+              }
+            }
+
+          }
+
+        }
+      }
+
+    }
+
+    .btn{
+      background: #D42A2A;
+      margin: 20rpx 20rpx 0;
+      text-align: center;
+      height: 66rpx;
+      line-height: 66rpx;
+      font-size: 30rpx;
+      color: #FFFFFF;
+    }
+  }
+
+  .couponShareFoot{
+    padding: 30rpx 20rpx 40rpx;
+  }
+
+  .ds_Btn {
+    animation: ds_Btn 1.5s ease-in-out infinite;
+    -webkit-animation: ds_Btn 1.5s ease-in-out infinite;
+  }
+
+  @keyframes ds_Btn {
+    0% {
+      transform: scale(1, 1);
+    }
+    50% {
+      transform: scale(1.1, 1.1);
+    }
+    100% {
+      transform: scale(1, 1);
+    }
+  }
+
+
+  .shareLoginBox{
+    .mask{
+      position: fixed;
+      z-index: 99;
+      top: 0;
+      right: 0;
+      left: 0;
+      bottom: 0;
+      background: rgba(0,0,0,.6);
+    }
+    .dialogBox{
+      z-index: 100;
+      width: 80%;
+      position: fixed;
+      max-width: 300px;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      background-color: #fff;
+      text-align: center;
+      border-radius: 3px;
+      overflow: hidden;
+      .dialogHead{
+        text-align: center;
+        //font-weight: 700;
+        font-size: 18px;
+        padding: 0.8em 0em .2em;
+        line-height: 30px;
+        margin-top: 0;
+        color:'#000000';
+      }
+      .dialogBody{
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 0.2em 1.6em .8em;
+        min-height: 40px;
+        font-size: 16px;
+        line-height: 1.3;
+        word-wrap: break-word;
+        word-break: break-all;
+
+        .content{
+          font-size: 36rpx;
+          color: #F94747;
+          text-align: center;
+          margin-top: 30rpx;
+        }
+        .tip{
+          font-size: 30rpx;
+          color: #747474;
+          text-align: center;
+          margin-top: 18rpx;
+          padding-bottom:20rpx;
+        }
+        input{
+          border: 1px solid #E5E5E5;
+          font-size: 30rpx;
+          color: #333;
+          letter-spacing: 0;
+          height: 80rpx;
+          line-height: 80rpx;
+          padding: 0 20rpx;
+          text-align: left;
+          &.placeholder{
+            font-size: 30rpx;
+            color: #757575;
+          }
+        }
+      }
+      .dialogFoot{
+        position: relative;
+        line-height: 48px;
+        font-size: 18px;
+        display: flex;
+        button{
+          display: block;
+          flex: 1;
+          color: #FF8000;
+          text-decoration: none;
+          border-radius: 0;
+          -webkit-tap-highlight-color: rgba(0,0,0,0);
+          position: relative;
+          border: 0;
+          background-color: #ffffff;
+
+          &:active{
+            background-color: #eee
+          }
+          &:after,&:before,&::after{
+            border: none;
+            border-radius: 0;
+          }
+          &.cancel{
+            color: #333;
+          }
+          &.sure{
+            &:after{
+              content: " ";
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 1px;
+              bottom: 0;
+              border-left: 1px solid #d5d5d6;
+              color: #d5d5d6;
+              transform-origin: 0 0;
+              transform: scaleX(.5);
+            }
+          }
+        }
+        &:after{
+          content: " ";
+          position: absolute;
+          left: 0;
+          top: 0;
+          right: 0;
+          height: 1px;
+          border-top: 1px solid #d5d5d6;
+          color: #d5d5d6;
+          transform-origin: 0 0;
+          transform: scaleY(.5);
+        }
+      }
+    }
+
+  }
+</style>

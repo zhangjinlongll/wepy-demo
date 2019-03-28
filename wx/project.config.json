@@ -1,0 +1,13 @@
+{
+  "description": "znlhzl",
+  "setting": {
+    "urlCheck": true,
+    "es6": false,
+    "postcss": false,
+    "minified": false
+  },
+  "compileType": "miniprogram",
+  "appid": "wx19cdd2c551adae4c",
+  "projectname": "wxdemo",
+  "miniprogramRoot": "./dist"
+}

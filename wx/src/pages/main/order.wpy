@@ -1,0 +1,910 @@
+
+<template>
+  <view wx:if="{{ pageShow }}">
+
+    <!-- 我的订单的种类组件 -->
+    <block wx:if="{{orderList.length==0 &&showPlaceHolder==true}}">
+      <placeholder @jumpAction.user="callBack" :showBnt.sync="showBtn"></placeholder>
+    </block>
+    <block wx:else>
+      <block wx:for="{{orderList}}" wx:for-item="item" wx:for-index="orderIndex" wx:key="this">
+
+        <view class="zn-container">
+
+          <view @tap.stop="jumpDetail({{item.orderCode }})">
+            <view class="zn-header">
+              <text class="zn-header-number"><text class="zn-header-small">{{item.orderInfo.projectName}}</text></text>
+              <block wx:if="{{item.orderStatus== '10'}}">
+                <text class="zn-header-status" style="color:#FF8000">跟进中</text>
+              </block>
+              <block wx:if="{{item.orderStatus== '20'}}">
+                <text class="zn-header-status" style="color:#FF8000">待签约</text>
+              </block>
+              <block wx:elif="{{item.orderStatus=='30'}}">
+                <text class="zn-header-status" style="color:#FE3F3B">待进场</text>
+              </block>
+              <block wx:elif="{{item.orderStatus=='40'}}">
+                <text class="zn-header-status" style="color:#0BB024">进行中</text>
+              </block>
+              <block wx:elif="{{item.orderStatus=='50'}}">
+                <text class="zn-header-status" style="#888888">已完成</text>
+              </block>
+              <block wx:elif="{{item.orderStatus=='90'}}">
+                <text class="zn-header-status" style="#888888" >已取消</text>
+              </block>
+            </view>
+            <view class="zn-number">
+              <block >
+                <view class="product_list">
+                  <view class="item" wx:for="{{item.orderDevList}}"  wx:for-item="self" wx:for-index="orderDevIndex" wx:key="this" wx:if="{{ self.num && self.num>0 }}">
+                    <image class="img" mode="aspectFill" src="{{ self.filePath || '../../images/img_zwt.png'  }}" data-err-img="orderList[{{ orderIndex }}].orderDevList[{{orderDevIndex}}].filePath" binderror="onImageError"></image>
+                    <view class="info">
+                      <view class="name">
+                        <text>{{ self.shighName }} {{ self.categoryName }}</text>
+                      </view>
+                      <view class="attribute">{{ self.attrs[0].name }}{{ self.attrs[0].value }} / {{ self.attrs[1].name }}{{ self.attrs[1].value }}</view>
+                      <view class="bottom">
+                        <view class="priceTotal">
+                          <view class="price">￥<text>{{ self.promMonthPrice }}</text> /月</view>
+                          <view class="price2">￥<text>{{ self.promDayPrice }}</text>/天</view>
+                        </view>
+                        <view class="buy numChangBox" >{{ self.num }} 台</view>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+              </block>
+              <block  wx:if="{{item.orderStatus=='40'}}">
+                <view class="zn-number-message">
+                  <text class="zn-number-message-more">共{{item.totalDevice}}台设备，已进场{{item.enterDevice}}台</text>
+                </view>
+              </block>
+
+            </view>
+          </view>
+          <view class="zn-button">
+
+            <view wx:if="{{ item.orderStatus == '10' }}">
+              <form @submit.stop="cancelOrde({{item.orderCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-gray" >取消订单</view>
+                </button>
+              </form>
+            </view>
+
+            <view wx:elif="{{ item.orderStatus == '20'}}">
+              <form @submit.stop="jumpSign({{item.orderCode}},{{item.orderInfo.projectName}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons">去签约</view>
+                </button>
+              </form>
+            </view>
+
+            <view wx:elif="{{ item.orderStatus == '30' }}">
+              <form @submit.stop="jumpToPay({{item.orderCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-yellow" >付款</view>
+                </button>
+              </form>
+            </view>
+
+            <view wx:elif="{{ item.orderStatus == '40'}}">
+              <form @submit.stop="jumpToPay({{item.orderCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-yellow" >付款</view>
+                </button>
+              </form>
+              <form @submit.stop="lookBill({{item.orderCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-black" >查看明细</view>
+                </button>
+              </form>
+            </view>
+
+            <view wx:elif="{{ item.orderStatus == '50' }}">
+              <form @submit.stop="lookBill({{item.orderCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-black" >查看明细</view>
+                </button>
+              </form>
+            </view>
+
+            <view wx:else="{{ item.orderStatus == '90' }}">
+              <form @submit.stop="delOrder({{item.orderCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-yellow">删除</view>
+                </button>
+              </form>
+            </view>
+
+            <!--报修按钮 add by 张明 20190127 10:48-->
+            <view wx:if="{{ item.repairSchedule == 1 }}">
+              <form @submit.stop="jumpToRepairInfo({{item.repairCode}})" report-submit="{{true}}">
+                <button formType="submit" class='formSubmitBtn'>
+                  <view class="buttons zn-button-red">{{ item.repairScheduleDesc }}</view>
+                </button>
+              </form>
+            </view>
+
+          </view>
+
+        </view>
+
+      </block>
+
+      <custSelect  hidden="{{ isShowCustSelect }}" @selectedCb.user="selectedCb" @footBtnCb.user="footBtnCb"  @hiddenModel.user="footBtnCb"></custSelect>
+
+      <form bindsubmit="jumpToCreateRepair" report-submit="{{true}}" wx:if="{{ repairStatus == 2 }}">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="repairBtnBox" >
+            <view class="repairIconBox">
+              <image class="repairIcon" src="../../images/icon_repair_white.png"></image>
+            </view>
+            <view class="repairText">{{ repairStatusDesc }}</view>
+          </view>
+        </button>
+      </form>
+
+      <form bindsubmit="jumpToCreateRepair" report-submit="{{true}}" wx:if="{{ repairStatus == 1 }}">
+        <button formType="submit" class='formSubmitBtn'>
+          <view class="repairBtnBox" >
+            <view class="repairIconBox">
+              <image class="repairIcon" src="../../images/icon_repair_white.png"></image>
+            </view>
+            <view class="repairText">设备报修</view>
+          </view>
+        </button>
+      </form>
+
+    </block>
+
+
+  </view>
+
+
+
+
+</template>
+
+<script>
+  import wepy from "wepy";
+  import tip from "../../utils/tip";
+  import api from "../../api/api";
+  import { USER_SPECICAL_INFO } from "../../utils/constant";
+  import BottomLoadMore from "../../components/common/bottomLoadMore"
+  import Placeholder from "../../components/common/placeholder"
+  import custSelect from '../../components/select_default';
+  export default class Order extends wepy.page {
+    config = {
+      navigationBarTitleText: '我的订单',
+      "enablePullDownRefresh": true
+    };
+
+    components = {
+      placeholder:Placeholder,
+      custSelect:custSelect,
+    };
+
+    data = {
+      showBtn:false,
+      pageShow:false,
+      selectOrderCode:"",
+      selectProjectName:"",
+      systemPlate: {},
+      orderList: [],
+      titlePlace: '暂无订单',
+      showPlaceHolder: false,
+      isShowCustSelect: true, //
+      userAuthStatus: null, // 个人签约
+      entAuthStatus: null, // 企业签约
+      repairCode:'', //
+      repairStatus:'',     // 报修按钮状态
+      repairStatusDesc:''  // 报修按钮状态中文
+    };
+
+    onLoad(option) {
+    };
+
+    onShow() {
+      //n tip.loading();
+      let that = this;
+      this.$parent.isCanLogin();
+      that.getOrderList(false);
+
+      that.$parent.setEnterPageLogs();
+      that.$parent.setLeavePageLogs();
+      that.$parent.setPageTitleLogs('订单列表');
+      that.$parent.setUrlLogs('/pages/main/order');
+    }
+
+    onHide(){
+      let that = this;
+      // 生命周期函数--监听页面隐藏
+      that.$parent.setLeavePageLogs();
+      that.$parent.sendLogs();
+    }
+
+    async getOrderList(showLoading = false){
+      let that = this;
+      const SPECICAL_INFO = await api.znGetStorageSync(USER_SPECICAL_INFO)
+      await this.canSign();
+      if(SPECICAL_INFO){
+        var isActive = SPECICAL_INFO.userInfo.isActive;
+      }else{
+        var isActive = 0;
+      }
+      if(isActive == 1){
+        const json = await api.getOrderList({
+          showLoading: false,
+          query:{
+            pageNo:1,
+            pageSize:9999,
+          }
+        });
+        if (json && json.data && (json.data.errCode===0) ){
+          that.orderList= json.data.data.list;
+          that.repairCode = json.data.data.repairCode;
+          that.repairStatus = json.data.data.repairStatus;
+          that.repairStatusDesc = json.data.data.repairStatusDesc;
+          if(that.orderList.length===0){
+            that.showPlaceHolder = true;
+            that.orderList=[];
+          }
+          that.$apply();
+        }else{
+          that.showPlaceHolder = true;
+          that.orderList=[];
+          that.$apply();
+        }
+      }else{
+        that.showPlaceHolder = true;
+        that.orderList=[];
+        that.$apply();
+      }
+
+      this.pageShow = true;
+      this.$apply();
+      tip.loaded();
+    }
+
+    async refreshData() {
+      this.getOrderList(false);
+      wx.stopPullDownRefresh()
+    }
+
+    async onPullDownRefresh() {
+      this.refreshData();
+    }
+
+    async canSign(){
+      let that = this;
+      let result  = await api.getCertification();
+      if(result && result.data && result.data.errCode === 0){
+        that.userAuthStatus = result.data.data.userAuthStatus; // 0: 未认证, 1: 已认证
+        that.entAuthStatus = result.data.data.entAuthStatus; //  0: 未认证, 1: 已认证
+        that.$apply();
+      }
+    }
+
+    async orderDelete(orderCode){
+      let that = this;
+      let result  = await api.orderDelete({
+        query:{
+          orderCode:orderCode
+        },
+        method:'POST'
+      });
+      if(result && result.data && result.data.errCode === 0){
+        that.refreshData();
+        tip.success('成功删除');
+        that.$apply();
+      }
+    }
+
+    async saveFormId(formId){
+      let result = await api.saveFormId({
+        method:'POST',
+        showError:false,
+        query:{
+          formId:formId
+        }
+      });
+      if(result && result.data && result.data.data &&result.data.errCode === 0){
+        return result.data.data;
+      }else {
+        throw result;
+      }
+    }
+
+    methods = {
+      onImageError: function(ev){
+        let that = this;
+        var _errImg=ev.target.dataset.errImg;
+        var _errObj={};
+        _errObj[_errImg]="../../images/img_zwt.png";
+        console.log( ev.detail.errMsg+"----" + "----" +_errImg );
+        that.setData(_errObj);
+      },
+
+      //快速下单
+      callBack:function() {
+        let that = this;
+        that.$parent.needBindPhone(function(){
+          wx.navigateTo({
+            url: '/pages/order/place_order'
+          });
+        },'/pages/order/place_order')
+      },
+
+      callModel:function (phoneNum) {
+        let that = this;
+        console.log(that.systemPlate)
+        if (that.systemPlate.platform == 'ios'){
+          wx.makePhoneCall({
+            phoneNumber: phoneNum
+          })
+        }else {
+          wx.showModal({
+            title: '客户经理',
+            content: phoneNum,
+            success: function (res) {
+              if (res.confirm) {
+                wx.makePhoneCall({
+                  phoneNumber: phoneNum
+                })
+              }else{
+                console.log('用户点击取消')
+              }
+
+            }
+          })
+        }
+      },
+
+      // 跳转详情
+      jumpDetail(orderCode,e){
+        let that = this;
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.$parent.setEventsLogs({
+          event_id:'order_list_detail',
+          params:{
+            order_code:  orderCode
+          }
+        });
+
+        wx.navigateTo({
+          url:'/pages/order/order_detail?orderCode='+orderCode,
+        })
+
+      },
+
+      // 取消订单
+      cancelOrde(orderCode,e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        wx.showModal({
+          title: '警告',
+          content: '确定取消该订单吗？',
+          success: async (res)=>{
+            if (res.confirm) {
+              let result = await api.cancelOrder({
+                query:{
+                  "invalidCode": orderCode,
+                  "invalidName": "客户信息无法满足",
+                  "invalidReason": "",
+                  "invalidType": "2"
+                },
+                method:"POST"
+              });
+              if( result && result.data && result.data.data ==1){
+                that.getOrderList();
+                that.$parent.setEventsLogs({
+                  event_id:'order_list_cancel',
+                  params:{
+                    order_code:  orderCode
+                  }
+                });
+              }
+            }
+          }
+        })
+      },
+
+      // 查看设备明细
+      async lookBill(orderCode,e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.$parent.setEventsLogs({
+          event_id:'order_list_devDetail',
+          params:{
+            order_code:  orderCode
+          }
+        });
+        wx.navigateTo({
+          url:'/pages/order/device_detail_list?orderCode='+orderCode,
+        })
+      },
+
+      //去签约
+      jumpSign(orderCode,projectName,e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        this.isShowCustSelect = !this.isShowCustSelect;
+        this.selectOrderCode = orderCode;
+        this.selectProjectName = projectName;
+        this.$apply();
+      },
+
+      //付款
+      jumpToPay(orderCode,e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.$parent.setEventsLogs({
+          event_id:'order_list_pay',
+          params:{
+            order_code:  orderCode
+          }
+        });
+        wx.navigateTo({
+          url: '/pages/order/order_start_pay?orderCode=' + orderCode,
+        })
+      },
+
+      //去签约下 选择后回调
+      selectedCb(item,e) {
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        this.isShowCustSelect = !this.isShowCustSelect;
+        if (item.name = "以个人身份签约") {
+
+
+          that.$parent.setEventsLogs({
+            event_id:'order_list_sign',
+            params:{
+              order_code:  this.selectOrderCode
+            }
+          });
+
+          // 调取接口返回是否签约信息
+          if (this.userAuthStatus != 1) {
+            // 未认证 跳转认证
+            wx.showModal({
+              content: '请先完成个人认证',
+              // showCancel: false,
+              confirmColor: '#FF8000',
+              confirmText: '去认证',
+              showCancel: false,
+              success: res => {
+                if (res.confirm) {
+                  wx.navigateTo({
+                    url: '/pages/mine/personal_authentication?needCb=true&&orderCode=' + this.selectOrderCode
+                  });
+                }
+              }
+            });
+
+          } else {
+            wx.navigateTo({
+              url: '/pages/order/create_sign_person?orderCode=' + this.selectOrderCode+"&projectName="+this.selectProjectName
+            });
+          }
+
+        }
+
+      },
+
+      //去签约下 取消
+      footBtnCb() {
+        this.isShowCustSelect = !this.isShowCustSelect;
+      },
+
+      //删除的订单
+      delOrder(orderCode,e){
+        let that = this;
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          that.saveFormId(e.detail.formId);
+        }
+
+        that.$parent.setEventsLogs({
+          event_id:'order_list_del',
+          params:{
+            order_code:  orderCode
+          }
+        });
+        wx.showModal({
+          title: '警告',
+          content: '确定删除该订单吗？',
+          success: async (res)=>{
+            if (res.confirm) {
+              that.orderDelete(orderCode);
+            }
+          }
+        })
+      },
+
+      //跳转报修详情
+      jumpToRepairInfo(repairCode,e){
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          this.saveFormId(e.detail.formId);
+        }
+
+        if(repairCode){
+          this.$preload({
+            repairCode:repairCode,
+            fromType:'order'
+          });
+
+          this.$navigate('/pages/order/repair_order_info');
+        }else{
+          wx.showModal({
+            content: '报修异常，请联系客户经理',
+            showCancel: false,
+            confirmColor: '#FF8000',
+            confirmText: "我知道了",
+            success: res=>{if (res.confirm) {}}
+          })
+        }
+      },
+
+      // 新增报修 - 发起报修
+      jumpToCreateRepair(e){
+
+
+
+        if (e && e.detail &&  e.detail.formId && e.detail.formId != 'the formId is a mock one') {
+          this.saveFormId(e.detail.formId);
+        }
+        if(this.repairStatus == 1){
+
+          this.$parent.setEventsLogs({
+            event_id:'repair_to_create',
+            params:{}
+          });
+
+          this.$navigate('/pages/order/repair_order');
+        }else if(this.repairStatus == 2){
+          this.$preload({
+            repairCode:this.repairCode,
+            fromType:'create'
+          });
+          this.$navigate('/pages/order/repair_order_info');
+        }
+
+      }
+
+    }
+
+  }
+</script>
+
+<style lang="less">
+  .empty {
+    margin-top: 300rpx;
+  }
+  .formSubmitBtn{
+    margin:0;
+    padding:0;
+    display:inherit;
+    text-align:inherit;
+    font-size:inherit;
+    line-height:inherit;
+    border:0;
+    background:inherit;
+  }
+  .zn-container{
+    background: #FFFFFF;
+    border-bottom:20rpx solid #EFEFF4;
+  }
+  .zn-header{
+    height: 84rpx;
+    line-height: 84rpx;
+    color: #343434;
+    border-bottom: 1rpx solid #E5E5E5;
+    overflow:hidden;
+
+  }
+  .zn-icon{
+    width:42rpx;
+    height: 42rpx;
+    vertical-align: middle;
+    margin-left:14rpx;
+    position: relative;
+    top:-2rpx;
+  }
+  .zn-header-number{
+    font-size:34rpx;
+    line-height: 84rpx;
+    margin-left:14rpx;
+    font-family: 'PingFangSC-Regular';
+    float:left;
+    max-width:550rpx;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .zn-header-status,.zn-header-small{
+    font-size:30rpx;
+    line-height: 84rpx;
+  }
+  .zn-header-status{
+    float:right;
+    margin-right:20rpx;
+
+  }
+  .zn-project{
+    height:140rpx;
+    line-height:60rpx;
+    border-bottom: 1rpx solid #E5E5E5;
+
+  }
+
+  .zn-project-name-box{
+    margin-top:20rpx;
+    margin-left:20rpx;
+    color: #343434;
+  }
+  .zn-project-customer-box{
+    margin-left:20rpx;
+    color: #343434;
+  }
+
+  .zn-icon-tel{
+    margin-left:60rpx;
+    color:#000000;
+  }
+
+  .zn-grey{
+    color: #747474;
+  }
+  .zn-project-customer,.zn-project-name{
+    margin-left:30rpx;
+  }
+
+  .zn-number{
+    /*border-bottom: 1rpx solid #E5E5E5;*/
+    overflow: hidden;
+
+    .product_list {
+      .item {
+        display:flex;
+        flex-direction:row;
+        background:#fff;
+        padding:20rpx;
+        height:auto;
+        width:auto;
+        border-bottom: 1px solid #EFEFF4;
+        .img {
+          width:220rpx;
+          height:160rpx;
+          background:#DBDBDB;
+          margin-left:0rpx;
+        }
+        .info {
+          flex-direction:column;
+          flex:1;
+          padding:0 30rpx;
+          padding-right:0;
+          position: relative;
+          height:160rpx;
+          .name {
+            font-size:32rpx;
+            color:#333333;
+            .discountDesc{
+              font-size: 18rpx;
+              color: #ffffff;
+              background: #FF5D5D;
+              border-radius: 8rpx;
+              width: 60rpx;
+              height: 28rpx;
+              text-align: center;
+              line-height: 28rpx;
+              display: inline-block;
+              vertical-align: top;
+              margin-left: 15rpx;
+              margin-top: 10rpx;
+            }
+          }
+
+          .attribute {
+            font-size:24rpx;
+            color:#979797;
+            padding:20rpx 10rpx 18rpx 0;
+            letter-spacing:0;
+          }
+
+          .bottom {
+            .priceTotal {
+              flex-direction:row;
+              display:flex;
+              flex: 1;
+              .price {
+                font-size:20rpx;
+                color: #979797;
+                text {
+                  font-size:34rpx;
+                }
+              }
+
+              .price2 {
+                font-size:20rpx;
+                color: #979797;
+                letter-spacing: 0;
+                margin-left: 30rpx;
+                text {
+                  font-size: 34rpx;
+                }
+              }
+            }
+
+          }
+
+        }
+      }
+
+      .buy {
+        width: 156rpx;
+        text-align: center;
+        vertical-align: top;
+        position: absolute;
+        top: 50%;
+        margin-top: -23rpx;
+        right: 0;
+        text-align: right;
+        .plus{
+          width: 48rpx;
+          height: 48rpx;
+          vertical-align: top;
+        }
+        text{
+          width: 60rpx;
+          text-align: center;
+          font-size: 32rpx;
+          line-height: 48rpx;
+          height: 48rpx;
+          color: #45474F;
+          vertical-align: top;
+          display:inline-block;
+        }
+        input{
+          width: 60rpx;
+          text-align: center;
+          font-size: 32rpx;
+          line-height: 48rpx;
+          height: 48rpx;
+          color: #45474F;
+          vertical-align: top;
+          display:inline-block;
+        }
+        .reduce{
+          width: 48rpx;
+          height: 48rpx;
+          vertical-align: top;
+        }
+      }
+    }
+
+  }
+
+  .zn-number-sort{
+    margin-top:20rpx;
+    margin-bottom:10px;
+    .zn-number-sort-height,.zn-number-sort-type{
+      margin-left:20rpx;
+    }
+    .zn-number-sort-amount{
+      float: right;
+      margin-right:20rpx;
+      color:#000000;
+    }
+  }
+
+  .zn-number-message{
+    margin-top:30rpx;
+    border-bottom: 1px solid #E5E5E5;
+    overflow: hidden;
+    .zn-number-message-more{
+      float: right;
+      font-family: 'PingFangSC-Regular';
+      font-size: 30rpx;
+      color: #45474F;
+      margin-right: 20rpx;
+      margin-bottom:24rpx;
+    }
+  }
+
+  .zn-button{
+    height:98rpx;
+  }
+  .buttons{
+    float:right;
+    width:150rpx;
+    height: 58rpx;
+    line-height: 58rpx;
+    font-size:28rpx;
+    background: none;
+    text-align: center;
+    color:#FF8000;
+    border: 1px solid #FF8000;
+    margin:20rpx 24rpx 0 6rpx;
+
+  }
+
+  .zn-button-black{
+    color:#666;
+    border: 1px solid #666;
+  }
+
+  .zn-button-gray{
+    color:#b2b2b2;
+    border: 1px solid #b2b2b2;
+  }
+
+  .zn-button-red{
+    color:#F94747;
+    border: 1px solid #F94747;
+  }
+
+  .repairBtnBox{
+    width: 112rpx;
+    height: 112rpx;
+    border-radius: 50%;
+    background-color: rgba(255,128,0,0.9);
+    position: fixed;
+    right: 20rpx;
+    bottom: 14%;
+    text-align: center;
+    .repairIconBox{
+      width: 45rpx;
+      height: 45rpx;
+      overflow: hidden;
+      margin:15rpx auto 5rpx;
+      position: relative;
+    }
+    .repairIcon{
+      width: 45rpx;
+      height: 45rpx;
+      display:block;
+      /*position: relative;*/
+      /*left: -41rpx;*/
+      /*border-right: 45rpx solid transparent;*/
+      /*filter: drop-shadow(#FFFFFF 45rpx 0px);*/
+    }
+    .repairText{
+      margin:0 auto;
+      width: 80rpx;
+      height: 28rpx;
+      line-height: 28rpx;
+      color: #ffffff;
+      font-size: 20rpx;
+      text-align: center;
+    }
+  }
+
+
+
+</style>
+

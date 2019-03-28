@@ -1,0 +1,280 @@
+
+<template>
+  <view class="creditWrap" wx:if="{{ pageShow }}">
+    <view class="contentHead">
+
+      <view class="myInfoBox">
+        <view class="scoreText">
+          <text>{{ grade }}</text>  {{ creditLevelDesc }}
+        </view>
+        <view class="scoreTip">
+          提升信用可享更多权益
+        </view>
+      </view>
+      <image class="dw-bg" src="../../images/img_dw.png"></image>
+
+      <view class="downBox" @tap="jumpRule">信用准则</view>
+
+    </view>
+
+
+    <view class="myRight" style="padding-top: 30rpx">
+      <view class="title">我的权益</view>
+      <view class="iconList" >
+        <view class="item" wx:for="{{ myEquityItemList }}" wx:for-item="item" wx:for-index="myEquityIndex" wx:key="myEquity">
+          <image class="icon" src="{{ item.iconUrl  }}"></image>
+          <view class="text">{{item.equityName }}</view>
+          <view class="tips">{{ item.equityDesc  }}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="titleBox">
+      <view class="line"></view>
+      <image class="" src="../../images/icon_title_zc.png"></image>
+      <view class="titleText">等级与权益说明</view>
+      <image class="" src="../../images/icon_title_yc.png"></image>
+      <view class="line"></view>
+    </view>
+
+    <view class="myRight noRight" wx:for="{{ equityGroupList }}" wx:for-item="self" wx:for-index="equityGroupListIndex" wx:key="equityGroupList">
+      <view class="title">评级{{ self.equityCategory+'（'+self.equityCategoryDesc+'）' }}</view>
+      <!--<view class="title">等级{{ zimu[equityGroupListIndex] }}</view>-->
+      <view class="iconList">
+        <view class="item" wx:for="{{ self.list }}" wx:for-item="item" wx:for-index="equityGroupIndex" wx:key="equityGroup">
+          <image class="icon" style="{{ self.equityCategoryDesc == '黑名单'?'':'opacity: 0.6' }}" src="{{ item.iconUrl  }}"></image>
+          <view class="text">{{ item.equityName  }}</view>
+          <view class="tips">{{ item.equityDesc  }}</view>
+        </view>
+      </view>
+    </view>
+
+  </view>
+</template>
+
+<script>
+  import wepy from "wepy";
+  import api from "../../api/api";
+  import tip from '../../utils/tip';
+
+  export default class business_policy extends wepy.page {
+    config = {
+      navigationBarTitleText: '商务政策',
+    };
+    components = {
+    };
+
+    data = {
+      zimu:['A','B','C','D','E'],
+      pageShow:false,
+      empty_tip_btn_show:false,
+      empty_tip_show:true,
+      score:0,
+      grade:'',
+      creditLevelDesc:'',
+      myEquityItemList:[],
+      equityGroupList:[],
+    };
+
+    onLoad(params,data) {
+      let that = this;
+
+      that.$apply(()=>{
+
+        that.creditLevelDesc = data.preload.creditLevelDesc;
+        that.equityGroupList = data.preload.equityGroupList;
+        that.myEquityItemList = data.preload.myEquityItemList;
+        that.grade = data.preload.grade;
+        that.score = data.preload.score;
+
+      });
+
+
+
+      this.set_page_show(true);
+    }
+
+    set_page_show(show){
+      this.$apply(()=>{
+        this.pageShow = show;
+      });
+    }
+
+    methods = {
+      jumpRule(){
+        wx.navigateTo({
+          url: '/pages/mine/credit_criteria'
+        });
+      }
+    }
+  }
+</script>
+
+<style lang="less">
+  .creditWrap{
+
+    .contentHead{
+      position: relative;
+      background-color: #FF8000;
+      padding-bottom: 55rpx;
+      padding-top: 30rpx;
+      .myInfoBox{
+        text-align: left;
+        position: relative;
+        padding-left: 50rpx;
+        z-index: 2;
+        .scoreText{
+          font-size: 30rpx;
+          color: #FFFFFF;
+          text{
+            font-size: 72rpx;
+          }
+        }
+        .scoreTip{
+          font-size: 26rpx;
+          color: #FFFFFF;
+        }
+      }
+      .downBox{
+        width: 134rpx;
+        text-align: center;
+        text-indent: 10rpx;
+        height: 46rpx;
+        line-height: 46rpx;
+        border:1px solid #ffffff;
+        border-right: 0;
+        border-radius: 23rpx 0 0 23rpx;
+        font-size: 24rpx;
+        color: #ffffff;
+        position: absolute;
+        top: 80rpx;
+        right: 0;
+        z-index: 3;
+      }
+
+      .ldt{
+        display: block;
+        width: 504rpx;
+        height: 386rpx;
+        margin: 0 auto;
+        position: relative;
+        z-index: 2;
+      }
+      .score{
+        text-align: center;
+        color: #FFFFFF;
+        font-size: 28rpx;
+        margin-top: 10rpx;
+        position: relative;
+        z-index: 2;
+      }
+      .dw-bg{
+        left: 0;
+        position: absolute;
+        bottom: 0;
+        width: 750rpx;
+        height: 104rpx;
+        z-index: 1;
+      }
+    }
+    .ranking{
+      background-color: #FFFFFF;
+      image{
+        position: relative;
+        z-index: 3;
+        margin-top: -80rpx;
+        width: 750rpx;
+        height: 299rpx;
+      }
+    }
+
+    .tipRules{
+      background-color: #FFF5E6;
+      padding: 10rpx 20rpx;
+      white-space:nowrap;
+      text{
+        white-space:nowrap;
+        font-size: 24rpx;
+        color: #747474;
+        line-height: 32rpx;
+        text{
+          color: #FF8000;
+        }
+      }
+    }
+
+    .titleBox{
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      line-height: 90rpx;
+      height: 90rpx;
+      background-color: #EFEFEF;
+      padding-top: 30rpx;
+      .line{
+        width: 150rpx;
+        height: 1px;
+        background-color: #e5e5e5;
+        margin: 0 20rpx;
+      }
+      image{
+        width: 32rpx;
+        height: 32rpx;
+      }
+      .titleText{
+        color: #343434;
+        font-size: 34rpx;
+        font-weight: 700;
+        padding: 0 20rpx;
+      }
+
+    }
+
+    .myRight{
+      background-color: #FFFFFF;
+      padding: 0 40rpx;
+      &.noRight{
+        padding-top: 10rpx;
+        padding-bottom: 20rpx;
+        background-color: #EFEFEF;
+        .title{
+          color: #333333;
+        }
+      }
+      &.blackList{
+
+      }
+
+      .title{
+        color: #FF8000;
+        font-size: 34rpx;
+      }
+      .iconList{
+        overflow: hidden;
+        .item{
+          float: left;
+          width: 25%;
+          text-align: center;
+          padding: 32rpx 0 28rpx 0;
+          .icon{
+            width: 100rpx;
+            height: 100rpx;
+            display: block;
+            margin: 0 auto;
+          }
+          .text{
+            font-size: 30rpx;
+            color: #343434;
+            margin-top: 20rpx;
+          }
+          .tips{
+            font-size: 24rpx;
+            color: #999999;
+            margin-top: 2rpx;
+          }
+        }
+      }
+    }
+  }
+</style>

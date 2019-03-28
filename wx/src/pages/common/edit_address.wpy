@@ -1,0 +1,505 @@
+
+<template>
+  <view class="wrap editAddressWrap" wx:if="{{ pageShow }}">
+    <form bindsubmit="formSubmit">
+      <view class="info">
+        <view class="item" wx:if="{{ hideNameAndPhone }}">
+          <view class="label">姓名</view>
+          <view class="value">
+            <input type="text" name="userName" value="{{ info.userName }}" disabled="{{ info.userName }}"   placeholder="您的姓名" placeholder-class="placeholder" @input="inputUserName" />
+          </view>
+        </view>
+        <view class="item" wx:if="{{ hideNameAndPhone }}">
+          <view class="label">电话</view>
+          <view class="value">
+            <input type="text" name="userPhone"  value="{{ info.userPhone }}" disabled="{{ info.userPhone }}" placeholder="您的电话" placeholder-class="placeholder" @input="inputUserPhone"  />
+          </view>
+        </view>
+        <view class="item">
+          <view class="label">地址</view>
+          <view class="value" @tap="goMap">
+            <view class="{{ info.address?'text':'text placeholder' }}">
+              {{ info.address || '请选择地址' }}
+            </view>
+            <image class="arrow" src="../../images/arrow_left.png" @tap="goMap"></image>
+            <input type="text" style="display: none" name="address" value="{{ info.address }}"/>
+          </view>
+        </view>
+        <view class="item">
+          <view class="label">工程</view>
+          <view class="value">
+            <input type="text" placeholder="工程名称" name="projectName"  value="{{ info.projectName }}" placeholder-class="placeholder" @input="inputProjectName"/>
+          </view>
+        </view>
+      </view>
+      <view class="bottom_btn  {{ isIphoneX?'iphoneXClass':'' }}" >
+        <button wx:if="{{type === 2}}" class="submit" formType="submit" ><text space decode>{{ saveBtnName }}</text></button>
+      <button wx:if="{{type === 1}}" class="submit" formType="submit"><text space decode>{{ editBtnName }}</text></button>
+    </view>
+    </form>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  import tip from '../../utils/tip';
+  import {
+    NOTIFI_ADDRESS_CHANGE,
+  } from '../../utils/notif_const';
+
+  import {
+    USER_SPECICAL_INFO,
+    USER_INFO,
+    SYSTEM_INFO,
+    ADDRESS_ID,
+    USER_CITY,
+    SEL_CLASS_CODE,
+    USER_PHONE
+  } from "../../utils/constant";
+
+  var amapFile = require('../../libs/amap-wx.js');
+  var appConfig = require('../../utils/app_config.js');
+  import WxNotificationCenter from '../../libs/WxNotificationCenter';
+  import WxValidate from '../../libs/WxValidate';
+
+  export default class editAddress extends wepy.page {
+    config = {
+      navigationBarTitleText: '',
+      navigationBarBackgroundColor: '#FF8000'
+    };
+
+    data = {
+      pageShow: false,
+      isIphoneX:false,
+      fromParams: {
+        fromUrl:'',
+        params:{}
+      },
+      toParams: {
+        toUrl:'',
+        params:{}
+      },
+      info: {
+        address:'', // 地址
+        latitude:'', // 地址经度
+        longitude:'', // 地址纬度
+        addressDesc:'',  // 地址 2段
+        addressDetail:'', // 地址 1段
+        carAddressCode:'', // 用车地址表编码
+        storeLatitude: null, // 仓库经度
+        storeLongitude: null,// 仓库纬度
+        projectName: "", // 工程名称
+        userName: "", // 用车人姓名
+        userPhone: "" // 用车人电话
+
+      }, // 地址信息
+      type: 2, // 1编辑地址 2，添加地址
+      hideNameAndPhone: true, //隐藏手机号及姓名
+      cityName: '', // 当前城市名称
+      cityCode: '', // 当前城市编码
+      currentAddress: '', // 当前地址
+      latitude: '', // 当前经度
+      longitude: '', // 当前纬度
+      saveBtnName:'保&emsp;存',
+      editBtnName:'保&emsp;存',
+    };
+
+    onLoad(option) {
+      let that = this;
+      that.isIphoneX = that.$parent.globalData.isIphoneX;
+      tip.loading();
+      if(option && option.params){
+        let params =  JSON.parse(decodeURIComponent(option.params));
+        if(params.type == 1){
+          // 1编辑
+          this.type = 1;
+          this.info.address = params.selectedItem.address;
+          this.info.latitude = params.selectedItem.latitude;
+          this.info.longitude = params.selectedItem.longitude;
+          this.info.addressDesc = params.selectedItem.addressDesc;
+          this.info.addressDetail = params.selectedItem.addressDetail;
+          this.info.storeLatitude = params.selectedItem.storeLatitude;
+          this.info.storeLongitude = params.selectedItem.storeLongitude;
+          this.info.projectName = params.selectedItem.projectName;
+          this.info.userName = params.selectedItem.userName;
+          this.info.userPhone = params.selectedItem.userPhone;
+          this.info.id = params.selectedItem.id;
+        } else {
+          // 2新建
+          this.type = 2;
+        }
+      }else {
+        this.type = 2;
+      }
+      //注册监听 adress
+      WxNotificationCenter.addNotification(NOTIFI_ADDRESS_CHANGE, that.addressChanged, that);
+      this.init();
+      this.$apply();
+    };// end onLoad
+
+    onUnload() {
+      let that = this;
+      WxNotificationCenter.removeNotification(NOTIFI_ADDRESS_CHANGE, that);
+    };// end onUnload
+
+    // type 2 根据手机号获取姓名
+    async getContactName() {
+      let that = this;
+      const userSpecicalInfo = api.znGetStorageSync(USER_SPECICAL_INFO);
+      const contactPhone = userSpecicalInfo.userInfo.phoneNum;
+      that.info.userPhone = contactPhone;
+      let json = await api.contactInfo({
+        query: {
+          contactTel: contactPhone
+        }
+      });
+      if (json && json.data.data && json.data.errCode === 0) {
+        that.info.userName = json.data.data.contactName;
+        if (that.info.userName) {
+          that.hideNameAndPhone = false;
+        }
+      }
+      that.$apply();
+    }
+
+    // type 2 初始化获取当前地址
+    getAddressInit() {
+      let that = this;
+      var key = appConfig.Config.amapKey;
+      var myAmapFun = new amapFile.AMapWX({key: key});
+      // 地图组件的id'
+      myAmapFun.getRegeo({
+        success: async (res) => {
+          console.log(res[0]);
+          that.longitude = res[0].longitude;
+          that.latitude = res[0].latitude;
+          that.currentAddress = res[0].name;
+
+          let result = await api.getCityInService({
+            query: {
+              invokeType: 2,
+              longitude: res[0].longitude,
+              latitude: res[0].latitude
+            },
+            showError: false
+          });
+          // let cityInfo = api.znGetStorageSync(USER_CITY);
+          if (result && result.data && result.data.errCode === 0) {
+            that.cityName = result.data.data.city.cityName;
+            that.cityCode = result.data.data.city.cityCode;
+            that.info.address = that.currentAddress;
+            that.info.addressDetail = that.info.address + that.info.addressDesc;
+            that.info.longitude = that.longitude;
+            that.info.latitude = that.latitude;
+            that.currentAddress = res[0].name;
+            that.cityName = '';
+            that.cityCode = '';
+          } else {
+            that.longitude = '';
+            that.latitude = '';
+            that.currentAddress = '';
+            that.cityName = '';
+            that.cityCode = '';
+            that.info.address = '';
+            that.info.longitude = '';
+            that.info.latitude = '';
+          }
+          that.$apply();
+        },
+        fail: (res) => {
+          console.log(res);
+        }
+      });
+    }
+
+    // 地址通知
+    async addressChanged(address) {
+      let that = this.observer;
+      that.info.addressDetail = address.address + address.desc;
+      that.info.latitude = address.latitude;
+      that.info.longitude = address.longitude;
+      that.info.addressDesc = address.desc;
+      that.info.address = address.address;
+      that.longitude = address.longitude;
+      that.latitude = address.latitude;
+      that.currentAddress = address.address + address.desc;
+      that.$apply();
+    }
+
+    // 设置 title
+    setTitle() {
+      if (this.type === 1) {
+        wx.setNavigationBarTitle({
+          title: '编辑用车地址'
+        })
+      }
+
+      if (this.type === 2) {
+        wx.setNavigationBarTitle({
+          title: '添加用车地址'
+        })
+      }
+
+    }
+
+    async init() {
+      let that = this;
+      that.setTitle();
+      if (this.type === 1) {
+        that.hideNameAndPhone = false;
+      } else if (this.type === 2) {
+        await that.getContactName();
+        await that.getAddressInit();
+      }
+      this.WxValidate = new WxValidate({
+        userName:{ required: that.hideNameAndPhone},
+        userPhone:{required: that.hideNameAndPhone},
+        address:{ required: true,maxlength:50},
+        projectName: { required: true,maxlength:50},
+      }, {
+        userName:{ required: '请输入姓名'},
+        userPhone:{ required: '请输入手机号码'},
+        address:{ required: '请输入用车地址', maxlength:WxValidate.prototype.formatTpl("用车地址最多可以输入 {0} 个字符。") },
+        projectName: { required: '请输入工程名称', maxlength:WxValidate.prototype.formatTpl('工程名称最多可以输入 {0} 个字符。') }
+      });
+
+      this.pageShow = true;
+      tip.loaded();
+    };
+
+    //添加保存
+    async save(){
+      let params ={
+        "address": this.info.address,//用车地址
+        "addressDesc": this.info.addressDesc,//用车地址明细
+        "latitude":  this.info.latitude,//经度
+        "longitude":  this.info.longitude,//纬度
+        "storeLatitude": this.info.storeLatitude,//经度
+        "storeLongitude": this.info.storeLongitude,//纬度
+        "projectName": this.info.projectName,//工程名称
+        "userName": this.info.userName,//用车人姓名
+        "userPhone": this.info.userPhone//用车人电话
+      }
+      const result = await api.addAddress({
+        method:"POST",
+        query:params
+      });
+      if(result && result.data && result.data.errCode === 0){
+        tip.success('提交成功！',800).then(()=>{
+          wx.navigateBack();
+        })
+      }
+      tip.loaded();
+    }
+
+    //  编辑修改
+    async edit(){
+      tip.loading('提交中...');
+      let params ={
+        id:this.info.id,
+        "address": this.info.address,//用车地址
+        "addressDesc": this.info.addressDesc,//用车地址明细
+        "storeLatitude": this.info.storeLatitude,//经度
+        "storeLongitude": this.info.storeLongitude,//纬度
+        "projectName": this.info.projectName,//工程名称
+        "userName": this.info.userName,//用车人姓名
+        "userPhone": this.info.userPhone,//用车人电话
+        "carAddressCode": this.info.carAddressCode,//用车地址表编码
+      }
+      const result = await api.updateAddress({
+        method:"POST",
+        query:params
+      })
+      if(result && result.data && result.data.errCode === 0){
+        tip.success('提交成功！',800).then(()=>{
+          wx.navigateBack();
+        })
+      }
+      tip.loaded();
+    }
+
+    computed = {};
+
+    methods = {
+      // 选择地址
+      selectItem(id) {
+        // 进入编辑地址界面
+        if (this.type === 1) {
+          console.log("进入编辑地址界面", this.type)
+        }
+
+        // 选中地址后回调
+        if (this.type === 2) {
+          console.log("选中地址后回调", this.type)
+        }
+      },
+
+      // 进入地图
+      goMap() {
+        let that = this;
+        if (that.info.address && that.info.latitude && that.info.longitude) {
+          let data = {
+            latitude: that.info.latitude,
+            longitude: that.info.longitude,
+            textName: that.info.address|| that.info.addressDetail , // || that.orderData.orderInfo.useAddress,
+            desc: that.info.addressDesc || '',
+            cbUrl: '/pages/common/editAddress'
+          };
+
+          wx.navigateTo({
+            url: '/pages/common/map_location?data=' + encodeURIComponent(JSON.stringify(data)),
+            success: function () {
+            }
+          })
+        } else {
+          wx.navigateTo({
+            url: '/pages/common/location_search',
+            success: function () {
+            }
+          })
+        }
+      },
+
+      // 输入工程名称
+      inputProjectName(e){
+        this.info.projectName = e.detail.value;
+        this.$apply();
+      },
+
+      //输入姓名
+      inputUserName(e){
+        this.info.userName = e.detail.value;
+        this.$apply();
+      },
+
+      //输入手机号码
+      inputUserPhone(e){
+        this.info.userPhone = e.detail.value;
+        this.$apply();
+      },
+
+      // 提交
+      async formSubmit(e) {
+        let that = this;
+        // 校验
+        if (!this.WxValidate.checkForm(e)) {
+          const errors = this.WxValidate.errorList[0]
+          // tip.error(`${errors.msg} `);
+          wx.showModal({
+            content: `${errors.msg}`,
+            showCancel: false,
+            confirmColor: '#FF8000',
+            success: res=>{if (res.confirm) {}}
+          })
+          return false
+        }
+        tip.loading('正在提交..');
+
+        if(this.type === 2){
+          await this.save()
+        }else{
+          await this.edit()
+        }
+      },
+
+    };// end methods
+
+    events = {};
+
+    watch = {};
+
+  }
+</script>
+<style lang="less">
+  page {
+    background: #E5E5E5;
+  }
+  .editAddressWrap{
+    padding-bottom: 98rpx;
+    .info{
+      background-color: #ffffff;
+      .item{
+        margin-left: 20rpx;
+
+        border-top: 1px solid #E5E5E5;
+        position: relative;
+        font-size: 34rpx;
+        color: #333;
+        line-height: 48rpx;
+        display: flex;
+        flex-direction: row;
+        .label{
+          padding: 20rpx 0;
+          width:68rpx;
+          margin-right: 50rpx;
+          text-align: left;
+          font-size: 34rpx;
+          color: #333;
+          line-height: 48rpx;
+        }
+        .value{
+          padding: 20rpx 0;
+          flex: 1;
+          font-size: 34rpx;
+          color: #333;
+          line-height: 48rpx;
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          align-items: center;
+          text-align:left;
+          .arrow{
+            width: 26rpx;
+            height: 26rpx;
+            margin-right: 20rpx;
+          }
+          input{
+            font-size: 34rpx;
+            color: #333;
+            line-height: 48rpx;
+            flex: 1;
+            padding-right: 10rpx;
+          }
+          .placeholder{
+            color: #B2B2B2;
+          }
+          .text{
+            font-size: 34rpx;
+            color: #333;
+            line-height: 48rpx;
+            &.placeholder{
+              color: #B2B2B2;
+            }
+          }
+        }
+
+      }
+    }
+    .bottom_btn{
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      button{
+        -webkit-appearance: none;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        border-radius:0;
+        border-color: #FF8000;
+        background-color: #FF8000;
+        color: #FFF;
+        line-height: 98rpx;
+        text-align: center;
+        font-size: 36rpx;
+        &::after{
+          border: none;
+        }
+        &.isGray{
+          background-color: #b2b2b2;
+        }
+      }
+    }
+  }
+
+</style>

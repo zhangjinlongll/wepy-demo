@@ -1,0 +1,324 @@
+<template>
+  <view class="container" wx:if="{{ pageShow }}">
+    <view class="top_bg">
+      <!--mode="widthFix"-->
+      <!--状态(20:待分派;30:待接单;40:待处理50:已完成;60:已作废-->
+      <view class="repair_meg">
+        <view class="status">报修状态：{{repairDetail.statusName}}</view>
+        <view class="meg"  wx:if="{{ repairDetail.status==50 }}">处理结果：{{repairDetail.dealResult || ''}}</view>
+        <view class="meg"  wx:else>故障情况：{{repairDetail.troubleInfo || ''}}</view>
+      </view>
+    </view>
+
+    <view class="roi-block engineer" wx:if="{{ repairDetail.serviceStaffTel }}">
+      <view class="engineer-cell name">
+        <view class="text">服务工程师</view>
+        <view class="text">{{repairDetail.serviceStaffName || ''}}</view>
+      </view>
+      <view class="engineer-cell phone" @tap="callPhone">
+        <image class="phoneImg" src="../../images/icon_sj.png"></image>
+        <view>{{repairDetail.serviceStaffTel || ''}}</view>
+      </view>
+    </view>
+
+    <view class="roi-block steps" wx:if="{{ repairDetail.status !=60 }}">
+      <view class="ri-title">
+        <view class="titleName">维修进度</view>
+      </view>
+      <view class="progressBar">
+        <view class="imgBox">
+         <image wx:if="{{ repairDetail.status==20 || repairDetail.status==30 }}" class="progressImg" src="../../images/roi_star.png" ></image>
+          <image wx:if="{{ repairDetail.status==40 }}" class="progressImg" src="../../images/roi_2.png" ></image>
+          <image wx:if="{{ repairDetail.status==50 }}" class="progressImg" src="../../images/roi_3.png" ></image>
+        </view>
+        <view class="timeBox">
+          <view class="timeValue">{{ repairDetail.repairDate || ''}}</view>
+          <view class="timeValue tv-center1">{{ repairDetail.receiptDate || ''}}</view>
+          <view class="timeValue tv-center2">{{ repairDetail.repairDealDate || ''}}</view>
+          <view class="timeValue tv-right">{{ repairDetail.repairEndDate || ''}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="roi-block worksheet">
+      <view class="ri-title">
+        <view class="titleName">工单信息</view>
+      </view>
+      <view class="workInfo" >
+        <view class="infoTxt">报修单号：{{repairDetail.repairCode || ''}}</view>
+        <view class="infoTxt" wx:if="{{ repairDetail.devType }}">报修设备：{{repairDetail.devType || ''}}</view>
+        <view class="infoTxt">故障情况：{{repairDetail.troubleInfo || ''}}</view>
+        <view class="infoTxt" wx:if="{{ repairDetail.troubleReason }}">故障原因：{{repairDetail.troubleReason || ''}}</view>
+        <view class="infoTxt" wx:if="{{ repairDetail.orderCode }}">订单编号：{{repairDetail.orderCode || ''}}</view>
+        <view class="infoTxt">用车地址：{{repairDetail.address || ''}}</view>
+      </view>
+    </view>
+  </view>
+</template>
+<script>
+  import wepy from 'wepy';
+  import api from '../../api/api';
+  export default class repair_order_info extends wepy.page{
+    data={
+      pageShow:false,
+      repairCode:'',
+      fromType:'',
+      fromUrl:'',
+      isIphoneX:false,
+      repairDetail:{
+        "repairCode": "",//报修单号
+        "address": "",//用车地址
+        "devTroubleType":null,//小程序故障类型\状态，1无法充电，2无法升高行走，3手柄故障 ,4续航不足 ,5漏油 ,6其他故障
+        "devTroubleTypeDesc": "",// 小程序故障类型\状态中文信息
+        "status": null,//状态
+        "statusName":"",//状态
+        "serviceStaff": null,//服务工程师编码
+        "serviceStaffName": null,//服务工程师名称
+        "serviceStaffTel": null,//服务工程师电话
+        "contactTel": null,//联系号码
+        "devType": null,//报修设备类型
+        "orderCode": null,//订单号
+        "dealResult": null,//处理结果
+        "troubleReason": null,//故障原因
+        "troubleInfo": null,//故障信息
+        "receiptDate": null,//接单时间
+        "repairDealDate": null,//维修处理时间
+        "repairDate": null,//维修处理时间
+        "repairEndDate": null,//完成时间
+        "createDate": null//创建时间---维修开始时间
+      },//详情
+    };
+    config={
+      navigationBarTitleText:"报修详情",
+      navigationBarBackgroundColor: '#FFFFFF',
+      navigationBarTextStyle: 'black',
+      "enablePullDownRefresh": true,
+
+    };
+    methods = {
+      //拨打电话
+      callPhone () {
+        this.$parent.setEventsLogs({
+          event_id:'repaire_detai_call',
+          params:{
+            repair_code:this.repairCode, //报修编号
+            repair_person:this.repairDetail.serviceStaffName, //维修工程师
+            repair_person_phone:this.repairDetail.serviceStaffTel, //维修工程师电话
+          }
+        });
+
+        wx.makePhoneCall({
+          phoneNumber: this.repairDetail.serviceStaffTel
+        })
+      }
+    };
+
+    // 获取报修记录
+    async getRepairDetail(){
+      let that =this;
+      let result = await api.getRepairDetail({
+        query:{
+          repairCode:that.repairCode
+        }
+      });
+      if(result && result.data && result.data.errCode == 0){
+        that.$apply(()=>{
+          that.repairDetail= result.data.data;
+          that.pageShow = true;
+
+          this.$parent.setEventsLogs({
+            event_id:'repaire_detail',
+            params:{
+              from_url:this.fromUrl, //从那个页面跳转到当前页
+              repair_code:this.repairCode, //报修编号
+              repair_staut:result.data.data.status, //报修状态
+              repair_fault:result.data.data.troubleInfo, //故障情况
+              repair_address:result.data.data.address, //报修地址
+              repair_person:result.data.data.serviceStaffName, //维修工程师
+              repair_person_phone:result.data.data.serviceStaffTel, //维修工程师电话
+              order_code:result.data.data.orderCode,
+            }
+          });
+
+        });
+      }else {
+        throw result;
+      }
+    }
+    //下拉
+    onPullDownRefresh() {
+      this.refreshData();
+    }
+    // 刷新
+    refreshData() {
+      let that = this;
+      that.getRepairDetail().then(res=>{
+        wx.stopPullDownRefresh();
+      });
+    }
+    onLoad(options,data){
+      let that =this;
+      that.$apply(()=>{
+        that.isIphoneX = that.$parent.globalData.isIphoneX;
+        that.repairCode=data.preload.repairCode;
+        that.fromType=data.preload.fromType;
+        if(that.fromType == 'order'){
+          that.fromUrl = '/pages/main/order';
+        }else if(that.fromType == 'create'){
+          that.fromUrl = '/pages/main/order';
+        }else if(that.fromType == 'list'){
+          that.fromUrl = '/pages/mine/repair_list';
+        }
+      });
+      that.refreshData();
+    };
+  }
+
+
+</script>
+<style lang="less">
+  .container{
+    background-color: transparent;
+  }
+  .top_bg{
+    height:210rpx;
+    overflow:hidden;
+    display:block;
+    background: linear-gradient(to right, #ff8000, #fea80b);
+    .repairBG{
+      display: inline-block;
+      height: 210rpx;
+      width: 100%;
+    }
+    width: 100%;
+    position: relative;
+    .repair_meg{
+      display: inline-block;
+      width: 100%;
+      -webkit-box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      box-sizing: border-box;
+      position: absolute;
+      top:50%;
+      left:0;
+      transform:translateY(-50%);
+      color: #ffffff;
+      padding: 30rpx;
+      .status{
+        color: #ffffff;
+        font-size: 34rpx;
+      }
+      .meg{
+        color: #ffffff;
+        font-size: 24rpx;
+        margin-top: 5rpx;
+        /*text-indent:-5em;*/
+        /*padding-left:5em;*/
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow : hidden;
+        word-break: break-all;
+      }
+    }
+  }
+  .roi-block{
+    background-color: #ffffff;
+    margin-bottom: 20rpx;
+    overflow:hidden;
+    display: block;
+    .ri-title{
+      width: 100%;
+      box-sizing: border-box;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 20rpx 0;
+      .titleName{
+        width: 100%;
+        box-sizing: border-box;
+        padding:0 20rpx;
+        border-left: 6rpx solid #FF8000 ;
+        font-size: 34rpx;
+        color: #343434;
+      }
+    }
+    .progressBar{
+      width: 100%;
+      box-sizing:border-box;
+      .imgBox{
+        margin-top: 42rpx;
+        width: 100%;
+        box-sizing:border-box;
+      }
+      .progressImg{
+        width: 650rpx;
+        height: 130rpx;
+        margin: 0 auto;
+        display: block;
+      }
+      .timeBox{
+        padding: 20rpx 25rpx;
+        padding-top: 0;
+        width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: space-between;
+        .timeValue{
+          box-sizing: border-box;
+          color: #999999;
+          font-size: 20rpx;
+          min-width:198rpx;
+          margin-top: 2rpx;
+        }
+      }
+    }
+  }
+  .worksheet{
+    .workInfo{
+      padding: 20rpx;
+      .infoTxt+.infoTxt{
+        margin-bottom: 5rpx;
+      }
+      .infoTxt{
+        line-height: 40rpx;
+        font-size: 26rpx;
+        color: #333333;
+        text-indent:-5em;
+        padding-left:5em;
+      }
+    }
+  }
+  .engineer{
+    padding: 20rpx;
+    display: flex;
+    /*margin-top:-10rpx;*/
+    justify-content: space-between;
+    .engineer-cell{
+      display: inline-block;
+      box-sizing: border-box;
+      width: 50%;
+      font-size: 34rpx;
+    }
+    .name{
+      display: flex;
+      justify-content: space-between;
+      .text{
+        display: inline-block;
+        font-size: 34rpx;
+      }
+    }
+    .phone{
+      text-align: right;
+      color: #ff8000;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content:flex-end;
+      .phoneImg{
+        width: 40rpx;
+        height: 40rpx;
+      }
+    }
+  }
+
+</style>

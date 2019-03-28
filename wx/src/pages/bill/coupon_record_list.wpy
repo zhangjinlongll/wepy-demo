@@ -1,0 +1,237 @@
+<template>
+
+  <view wx:if="{{ pageShow }}">
+
+    <view wx:if="{{list && list.length>0}}" class="couponListWrap">
+     <view class="unusableList">
+        <view class="item unusable" wx:for="{{list}}" wx:key="unusableCoupon" wx:for-item="item">
+          <view class="bg"></view>
+          <view class="info">
+            <view class="price">
+              <text class="unit">¥</text><text class="num">{{ item.money }}</text>
+            </view>
+            <view class="line"></view>
+            <view class="tipsContent">
+              <view class="title">{{ item.couponName }}</view>
+              <view class="rule">
+                <text wx:if="{{item.couponType == 0}}">无门槛使用</text>
+                <text wx:if="{{item.couponType == 1}}">满减</text>
+                <text wx:if="{{item.couponType == 2}}">减运费</text>
+                <text wx:if="{{item.couponType == 3}}">满折扣</text>
+              </view>
+              <view class="date" wx:if="{{ item.useDate }}">使用时间：{{ item.useDate }}</view>
+            </view>
+            <view class="iconState">
+              <image src="../../images/img_ysy.png"></image>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <placeholder :show.sync="is_empty" message="暂无用券记录" top="150rpx" buttonTop="360rpx" :showBnt.sync="isShowBtn"></placeholder>
+
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '../../api/api';
+import tip from '../../utils/tip';
+import Placeholder from "../../components/common/placeholder"; // 空数据提示
+export default class coupon_record_list extends wepy.page {
+  config = {
+    navigationBarTitleText: '优惠券',
+  };
+
+  data = {
+    isShowBtn:false,
+    pageShow:false,
+    is_empty: false,
+    list:[]
+  };
+
+  components={
+    placeholder:Placeholder
+  };
+
+  onLoad(option,data) {
+    //n tip.loading();
+    this.$apply(()=>{
+      this.list = data.preload.data
+    })
+    this.set_page_show(true);
+
+    if(data.preload.data && data.preload.data.length>0){
+      this.set_empty_show(false);
+    }else{
+      this.set_empty_show(true);
+    }
+
+  }
+
+  set_page_show(show){
+    this.$apply(()=>{
+      this.pageShow = show;
+    });
+  }
+
+  set_empty_show(show){
+    this.$apply(()=>{
+      this.is_empty = show;
+    });
+  }
+
+  methods = {
+
+    lookRule(){
+      wx.navigateTo({
+        url: '/pages/mine/coupon_rule'
+      })
+    },
+  };
+
+}
+
+</script>
+<style lang="less">
+.couponListWrap{
+  margin-top: 30rpx;
+
+  padding-bottom: 68rpx;
+  .usableList{}
+  .unusableList{
+    margin-top: 40rpx;
+  }
+
+  .item{
+    height: 200rpx;
+    margin: 20rpx 20rpx 0 24rpx;
+    position: relative;
+
+    &.unusable{
+      .bg{
+        background-color: #B2B2B2;
+      }
+      .price{
+        color: #B2B2B2;
+      }
+      .tipsContent{
+        .title{
+          color: #B2B2B2;
+        }
+      }
+    }
+    .bg{
+      width: 60rpx;
+      height: 200rpx;
+      background-color: #FF8000;
+      position: absolute;
+      left: -4rpx;
+      top: 0;
+      z-index: 1;
+      border-radius: 8px;
+    }
+    .info{
+      background-color: #ffffff;
+      border-radius: 8px;
+      position: relative;
+      z-index: 2;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: -ms-flexbox;
+      display: flex;
+      -webkit-flex-direction: row;
+      -ms-flex-direction: row;
+      flex-direction: row;
+
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+      -ms-flex-align: center;
+      align-items: center;
+      text-align: left;
+      height: 200rpx;
+    }
+    .price{
+      width: 184rpx;
+      text-align: center;
+      font-weight: 700;
+      color: #FF8000;
+      .unit{
+        font-size: 30rpx;
+        font-weight: 500;
+      }
+      .num{
+        font-size: 64rpx;
+      }
+
+    }
+    .line{
+      height: 180rpx;
+      width: 0px;
+      border: 1px dashed #e5e5e5;
+      position: absolute;
+      top: 10rpx;
+      left: 184rpx;
+      z-index: 2;
+    }
+    .line2{
+      height: 180rpx;
+      width: 0px;
+      border: 1px dashed #FFF;
+      position: absolute;
+      top: 10rpx;
+      left: 183rpx;
+      z-index: 3;
+    }
+    .tipsContent{
+      padding: 0 25rpx;
+      flex: 1;
+      position: relative;
+      .title{
+        font-size: 30rpx;
+        color: #333;
+        font-weight: 700;
+        margin-top: 0;
+      }
+      .rule{
+        font-size: 24rpx;
+        color: #9B9999;
+        margin-top: 5rpx;
+        text{
+          font-size: 24rpx;
+          color: #9B9999;
+        }
+      }
+      .date{
+        font-size: 24rpx;
+        color: #C7C7CC;
+        margin-top: 50rpx;
+      }
+    }
+    .state{
+      position: absolute;
+      text-align: center;
+      border: 1px solid #FF8000;
+      top: 100rpx;
+      right: 20rpx;
+      color: #FF8000;
+      font-size: 22rpx;
+      width: 100rpx;
+      height: 40rpx;
+      line-height: 40rpx;
+      border-radius: 4rpx;
+    }
+    .iconState{
+      position: absolute;
+      top: 42rpx;
+      right: 20rpx;
+      image{
+        width: 130rpx;
+        height: 118rpx;
+      }
+    }
+
+  }
+}
+</style>
